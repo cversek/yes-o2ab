@@ -1,2 +1,0 @@
-metadata = {'author_email': 'cwv@yesinc.com', 'version': 'dev', 'name': 'yes_o2ab', 'author': 'Craig Versek'}
-platform = {'config_filedir': '/etc/Automat/yes_o2ab', 'system': 'Linux', 'config_filepath': '/etc/Automat/yes_o2ab/testing.cfg'}

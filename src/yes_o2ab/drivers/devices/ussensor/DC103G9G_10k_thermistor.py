@@ -39,8 +39,7 @@ class Interface(Device):
 
     def read(self):
         "reads the thermistor temperature in degrees C"
-        val = self.daq.read_sensor(self.daq_channel)
-        V = SENSOR_TO_VOLTAGE*val
+        V = self.read_raw_voltage()
         V = V + self.V0 #apply voltage correction
         T = volt_to_temp(V)
         return T

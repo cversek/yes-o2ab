@@ -42,7 +42,7 @@ class Interface(FLIDevice):
         """
         self.initialize()
         self._driver.set_exposure(exptime = exptime, frametype = frametype)
-        self._driver.set_bit_depth(bitdepth)
+        self._driver.set_bitdepth(bitdepth)
         img = self._driver.take_photo()
         #cache the image
         self.last_image = img       

@@ -200,7 +200,7 @@ class GUI:
         exptime = int(self.settings_dialog.form['exposure_time'])
         S, I = self.app.acquire_spectrum(exptime)   
         self._update_spectral_plot(S)
-        self._update_image(I)
+        #self._update_image(I)
         self.export_spectrum_button.config(state='normal') #data can now be exported
         self.save_image_button.config(state='normal') #data can now be exported
 

@@ -8,7 +8,7 @@ from automat.core.hwcontrol.controllers.controller import Controller, AbortInter
 try:
     from collections import OrderedDict
 except ImportError:
-    from automat.support.odict import OrderedDict
+    from yes_o2ab.support.odict import OrderedDict
 ###############################################################################
 
 

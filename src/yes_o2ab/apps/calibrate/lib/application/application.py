@@ -103,6 +103,7 @@ class Application:
         try:
             device   =  self.config.load_device(handle)
             self.devices[handle] = device   #cache the device
+            self.print_comment("    success.")
             return device
         except Exception, exc:
             settings = self.config['devices'].get(handle, None)
@@ -128,6 +129,7 @@ class Application:
                 controller = self.config.load_controller(name)
                 self.controllers[name] = controller
                 self.print_comment("    success.")
+                return controller
             except Exception, exc:
                 self.print_comment("    failed loading controller '%s' with exception: %s" % (name, exc))
                 if not self.ignore_device_errors:

@@ -33,7 +33,7 @@ INSTALL_REQUIRES = [
 #scripts and plugins
 ENTRY_POINTS =  { 'gui_scripts':     [
                                       'yes_o2ab_calibrate = yes_o2ab.apps.calibrate.main:main',
-                                      
+                                      'yes_o2ab_tempmonitor = yes_o2ab.apps.tempmonitor.main:main',
                                      ],
                  'console_scripts': [
                                       'yes_o2ab_shell  = yes_o2ab.apps.shell.shell:main',

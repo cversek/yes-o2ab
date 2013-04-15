@@ -5,6 +5,10 @@ Controller to monitor temperature from the USB DAQ
 import time, datetime
 import pylab
 from automat.core.hwcontrol.controllers.controller import Controller, AbortInterrupt, NullController
+try:
+    from collections import OrderedDict
+except ImportError:
+    from automat.support.odict import OrderedDict
 ###############################################################################
 
 
@@ -14,8 +18,8 @@ class Interface(Controller):
         Controller.__init__(self, **kwargs)
         
     def acquire_sample(self):
-        temps = {}
-        for key,therm in self.devices.items():
+        temps = OrderedDict()
+        for key,therm in sorted(self.devices.items()):
             temps[therm.name] = therm.read()
         return temps
             

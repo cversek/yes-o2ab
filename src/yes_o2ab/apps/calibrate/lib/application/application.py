@@ -84,8 +84,12 @@ class Application:
         self.textbox_printer = textbox_printer
 
     def print_comment(self, text, eol = '\n', comment_prefix = '#'):
-        lines = text.split(eol)
-        buff = eol.join([ comment_prefix + line for line in lines])
+        buff = ""        
+        if eol:        
+            lines = text.split(eol)
+            buff = eol.join([ comment_prefix + line for line in lines])
+        else:
+            buff = comment_prefix + text
         stream_print(buff, stream = self.output_stream, eol = eol)
         #also print to the textbox if available
         self.textbox_printer(buff)
@@ -95,7 +99,7 @@ class Application:
         self.print_comment("Logged: " + msg)        
               
     def load_device(self,handle):
-        self.print_comment("Loading device '%s'" % handle) 
+        self.print_comment("Loading device '%s'..." % handle, eol='') 
         try:
             device   =  self.config.load_device(handle)
             self.devices[handle] = device   #cache the device
@@ -141,13 +145,23 @@ class Application:
 #        camera.set_exposure(exptime)
                 
     def acquire_spectrum(self, exptime = DEFAULT_EXPTIME):
-        #load devices
+        self.print_comment("Acquiring spectrum.")
+        #get the device handles
         camera = self.load_device('camera')
-        #acquire image and process into rudimentary spectrum        
+        self.print_comment("success.")
+        #acquire image and process into rudimentary spectrum
+        self.print_comment("Exposing for %d milliseconds..." % (exptime,), eol='')                
         I = camera.take_photo(exptime)
-        S = I.sum(axis=1)
-        #cache the last spectrum
+        self.print_comment("completed.") 
+        S = I.sum(axis=0)
+        #cache the last spectrum and image
+        self.last_image = I
         self.last_spectrum = S
-        return S 
+        return (S, I)
+
+    def select_band(self, band):
+        self.print_comment("Switching Band.")
+        band_switcher = self.load_controller('band_switcher')
+        band_switcher.select_band(band)
 
         

@@ -27,6 +27,7 @@ class SettingsDialog(Dialog):
         form.new_field('exposure_time',
                        labelpos='w',
                        label_text="Exposure Time (ms):",
+                       entry_width=6,
                        value = EXPOSURE_TIME_DEFAULT,
                        validate = self.validator 
         
@@ -34,6 +35,7 @@ class SettingsDialog(Dialog):
         form.new_field('run_interval',
                        labelpos='w',
                        label_text="Run Interval (s):",
+                       entry_width=6,
                        value = RUN_INTERVAL_DEFAULT,
                        validate = self.validator 
                       )

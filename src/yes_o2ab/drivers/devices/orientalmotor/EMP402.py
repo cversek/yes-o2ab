@@ -9,7 +9,7 @@ from automat.core.hwcontrol.devices.instruments import Model
 #mixin interfaces
 from automat.core.hwcontrol.communication.serial_mixin import SerialCommunicationsMixIn
 
-PROMPT_REGEX       = re.compile("0[>]\s*$")
+PROMPT_REGEX       = re.compile("\s*0[>]\s*$")
 SYNTAX_ERROR_REGEX = re.compile(r"\s+[*]\s+Syntax\s+error[.]\s+$") 
 
 #motor control magic numbers
@@ -20,6 +20,7 @@ STEPS_MAX          = 16777215
 STEPS_MIN          = -STEPS_MAX
 STEPS_DEFAULT      = 1
 DELAY = 0.05
+PROMPT_RETRY_TIME  = 0.2
 RESET_SLEEP_TIME   = 1.0
 
 def constrain(val, min_val, max_val):
@@ -31,9 +32,9 @@ def constrain(val, min_val, max_val):
 
 ###############################################################################
 class Interface(Model, SerialCommunicationsMixIn):
-    def __init__(self, port):
+    def __init__(self, port, **kwargs):
         #initialize GPIB communication
-        SerialCommunicationsMixIn.__init__(self, port, delay = DELAY)
+        SerialCommunicationsMixIn.__init__(self, port, delay = DELAY, **kwargs)
 #    def __del__(self):
 #        self.shutdown()
     #--------------------------------------------------------------------------
@@ -165,7 +166,7 @@ class Interface(Model, SerialCommunicationsMixIn):
         elif axis==2:
             self._send_command("S2")
         else:
-            raise ValueError("'axis' must be either 1 or 2")
+            raise ValueError("'axis' must be either 1, 2 or None (both)")
      
     def write_digital_output(self,chan,state):
         chan  = int(chan)
@@ -179,46 +180,77 @@ class Interface(Model, SerialCommunicationsMixIn):
         "leave the system in a safe state"
         self.stop()
         self._reset()
+        
+    def _init_command_prompt(self, attempts = 5):
+        for i in range(attempts):
+            #initialize the prompt
+            print "!!! INIT PROMPT"
+            self._send('')
+            success, resp = self._read_until_prompt()
+            print "!!! INIT PROMPT RESP:", success, resp
+            if success:
+                return
+            time.sleep(PROMPT_RETRY_TIME)
+        else:
+            raise IOError("could not initialize command prompt of %s in %d attempts" % (self.identify(),attempts))
     
     def _send_command(self, cmd):
-        self._send(cmd)
+        print "!!! SEND COMMAND:", cmd
+        #send the command one character at a time
+        for c in cmd:
+            print "\t",c
+            self.ser.write(c)
+            self.ser.flushOutput()
+            time.sleep(DELAY)
+            #self.ser.read(1)
+        self._send("")# send EOL
+        self.ser.flushOutput()
         
     def _exchange_command(self, cmd):
+        print "!!! EXCHANGE COMMAND:", cmd
         self.ser.flushInput()  #ignore crap in the buffer
-        self._send(cmd)
+        #self._init_command_prompt()
+        self._send_command(cmd)
+        time.sleep(0.5)
         success, buff = self._read_until_prompt()
-        #print buff
+        print "!!! RESP:", success,buff
         if not success:
             raise IOError, "could not verify command: %s" % cmd
         return "".join(buff)
 
     def _read_until_prompt(self):
-        buff = []        
+        buff = []
         while True:
             line = self._read(strip_EOL = False)
             if line == "":
                 return (False, buff)
             buff.append(line)
-            #check for prompt            
+            #check for prompt
             m = PROMPT_REGEX.match(line)
             if not m is None:
                 return (True, buff)
             #check for syntax error
             m = SYNTAX_ERROR_REGEX.match(line)
             if not m is None:
-                raise ValueError, "bad command syntax"            
+                raise ValueError, "bad command syntax:", line
  
     def _reset(self):
-        self._send_command("RESET")
+        print "!!! BEFORE RESET"
+        #self._init_command_prompt()
+        self._send_command("RESET\r\n")
         time.sleep(RESET_SLEEP_TIME)
+        #self.ser.flushInput()  #ignore crap in the buffer
+        #self.ser.flushOutput()  #ignore crap in the buffer
+        print "!!! AFTER RESET"
+        #self._init_command_prompt()
 
     #--------------------------------------------------------------------------
       
 
 #------------------------------------------------------------------------------
 # INTERFACE CONFIGURATOR         
-def get_interface(port):
-    return Interface(port)
+def get_interface(port, **kwargs):
+    return Interface(port, **kwargs)
     
 ###############################################################################
 # TEST CODE

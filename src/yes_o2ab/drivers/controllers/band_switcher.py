@@ -18,6 +18,10 @@ class Interface(Controller):
     def __init__(self,**kwargs):
         self.band = None
         Controller.__init__(self, **kwargs)
+        
+    def initialize(self):
+        band_motor = self.devices['band_motor']
+        band_motor.motor_controller.initialize()
         #ensure windings are off
         self.set_windings('off') 
     
@@ -33,7 +37,7 @@ class Interface(Controller):
         
         
     def select_band(self, band):
-        """switches betwen the 'A' and 'B' bands, windings are
+        """switches betwen the 'H2O' and 'O2A' bands, windings are
            always set 'off' upon completion (even during an error state)
         """
         #configure the devices
@@ -49,12 +53,12 @@ class Interface(Controller):
             #ensure windings are on
             self.set_windings('on')
             band_motor.configure_limit_sensors(sensor_mode=2) # 2 sensor mode
-            if band == 'A':     #system is driven CW to Limit
+            if band == 'H2O':     #system is driven CW to Limit
                 band_motor.seek_home('CW')
-            elif band == 'B':   #system is driven CCW to Limit
+            elif band == 'O2A':   #system is driven CCW to Limit
                 band_motor.seek_home('CCW')
             else:
-                raise ValueError, "'band' must be 'A' or 'B'"
+                raise ValueError, "'band' must be 'H2O' or 'O2A'"
             #in no band while moving
             self.band = None
             #wait until moving stops
@@ -76,11 +80,11 @@ class Interface(Controller):
         if adjust_speed is None:
             adjust_speed = self.configuration['default_adjust_speed']
         if self.band is None:
-            self.select_band('A')
+            self.select_band('H2O')
         picomotor = None
-        if self.band == 'A':
+        if self.band == 'H2O':
             picomotor = self.devices['picomotorA']
-        elif self.band == 'B':
+        elif self.band == 'O2A':
             picomotor = self.devices['picomotorB']
         picomotor.initialize()
         picomotor.move_relative(steps, speed = adjust_speed)
@@ -102,7 +106,7 @@ class InteractiveInterface:
         self.controller.set_windings(state)
     
     def select_band(self, band):
-        """switches betwen the 'A' and 'B' bands"""
+        """switches betwen the 'H2O' and 'O2A' bands"""
         self.controller.select_band(band)
         self.band = self.controller.band  
     

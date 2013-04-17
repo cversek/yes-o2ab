@@ -4,10 +4,11 @@ import os, time, datetime, signal, socket, shelve
 import Tkinter as tk
 import ttk
 #3rd party packages
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageOps
 import Pmw
 from numpy import arange, savetxt
 from FileDialog import SaveFileDialog
+import scipy.misc
 #Automat framework provided
 from automat.core.gui.text_widgets           import TextDisplayBox
 from automat.core.gui.pmw_custom.entry_form  import EntryForm
@@ -17,12 +18,14 @@ from automat.core.plotting.tk_embedded_plots import EmbeddedFigure
 from yes_o2ab.core.plotting.spectra          import RawSpectrumPlot
 #application local
 from settings_dialog import SettingsDialog
+from filter_select_dialog import FilterSelectDialog
 ###############################################################################
 # Module Constants
 WINDOW_TITLE      = "YES O2AB Calibrate"
 WAIT_DELAY        = 100 #milliseconds
 TEXT_BUFFER_SIZE  = 10*2**20 #ten megabytes
 SPECTRAL_FIGSIZE  = (10,5) #inches
+MAX_IMAGESIZE     = (800,600)
 
 DEFAULT_EXPOSURE_TIME = 10 #milliseconds
 DEFAULT_RUN_INTERVAL  = 10 #seconds
@@ -209,7 +212,36 @@ class GUI:
     
     def filter_select(self):
         self.app.print_comment("Selecting filter...")
-        #TODO call custom dialog for settings
+        #get the current settings
+        filter_wheel = self.app.config.load_device("filter_wheel")
+        pos = filter_wheel.get_position()
+        A = pos // 5
+        B = pos %  5
+        itemsB = sorted(filter_wheel.kwargs['wheel_B'].items())
+        choicesB = [(int(slot.strip("slot")),text) for slot, text in itemsB]
+        itemsA = sorted(filter_wheel.kwargs['wheel_A'].items())
+        choicesA = [(int(slot.strip("slot")),text) for slot, text in itemsA]
+        #build the confirmation dialog
+        self.filter_select_dialog = FilterSelectDialog(self.win, 
+                                                       choicesB = choicesB,
+                                                       choicesA = choicesA,
+                                                       command = self._set_filter_pos
+                                                       )
+        self.filter_select_dialog.varB.set(B)
+        self.filter_select_dialog.varA.set(A)
+        self.filter_select_dialog.withdraw()
+        self.filter_select_dialog.activate()
+
+
+    def _set_filter_pos(self, event):
+        B = self.filter_select_dialog.varB.get()
+        A = self.filter_select_dialog.varA.get()
+        pos = 5*A + B
+        self.app.print_comment("Setting Filter Wheel to pos = %d..." % pos)
+        filter_wheel = self.app.config.load_device("filter_wheel")
+        filter_wheel.set_position(pos)
+        self.app.print_comment("finished.")
+        self.filter_select_dialog.deactivate()
 
     def band_select(self, band):
         if band == 'A':
@@ -269,7 +301,9 @@ class GUI:
                            key = None
                           )
         if filename:
-            self.last_image.save(filename)
+            I = self.last_image_data
+            img = scipy.misc.toimage(I,mode='I') #convert  to 16-bit greyscale
+            img.save(filename)
             
     def _update_spectral_plot(self, S):
         figure = self.spectral_figure_widget.get_figure()        
@@ -282,9 +316,17 @@ class GUI:
         self.spectral_figure_widget.update()
     
     def _update_image(self, I):
-        img = Image.fromarray(I)
-        self.last_image = img
-        self.last_photo = photo = ImageTk.PhotoImage(img) #keep the reference
+        #downsample to 8-bit for display
+        I2 = (I/2**8).astype('uint8')
+        disp_img = Image.fromarray(I2)
+        x,y = disp_img.size
+        scale = min(MAX_IMAGESIZE[0]/float(x),MAX_IMAGESIZE[1]/float(y))
+        new_size = (int(x*scale),int(y*scale))
+        disp_img.thumbnail(new_size, Image.ANTIALIAS)       
+        disp_img = ImageOps.autocontrast(disp_img)
+        self.last_image_data    = I        
+        self.last_image_display = disp_img
+        self.last_photo = photo = ImageTk.PhotoImage(disp_img) #keep the reference
         self.photo_label_widget.config(image = photo)     #update the widget
  
 #    def wait_on_experiment(self):

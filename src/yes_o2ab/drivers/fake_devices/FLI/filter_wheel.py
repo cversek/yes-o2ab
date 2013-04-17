@@ -14,8 +14,9 @@ from device import FLIDevice
 ###############################################################################
 class Interface(FLIDevice):
     _driver_class = USBFilterWheel
-    def __init__(self, serial_number):
-        FLIDevice.__init__(self, serial_number=serial_number)
+    def __init__(self, serial_number, **kwargs):
+        self.kwargs = kwargs
+        self._position = 0
     def _init_device(self):
         self.set_position(0)
     #--------------------------------------------------------------------------
@@ -23,25 +24,22 @@ class Interface(FLIDevice):
     #--------------------------------------------------------------------------
     def set_position(self, pos):
         "Sets the postion of the filter wheel"
-        self._init_driver()     
-        self._driver.set_filter_pos(pos)
+        self._position = pos
 
     def get_position(self):
         "Gets the postion of the filter wheel"
-        self._init_driver()        
-        return self._driver.get_filter_pos()
+        return self._position
 
     def get_filter_count(self):
         "Gets the total number of positions"
-        self._init_driver()        
-        return self._driver.get_filter_count()
+        return 24
     #--------------------------------------------------------------------------
       
 
 #------------------------------------------------------------------------------
 # INTERFACE CONFIGURATOR         
-def get_interface(serial_number):
-    return Interface(serial_number=serial_number)
+def get_interface(serial_number, **kwargs):
+    return Interface(serial_number=serial_number, **kwargs)
     
 ###############################################################################
 # TEST CODE

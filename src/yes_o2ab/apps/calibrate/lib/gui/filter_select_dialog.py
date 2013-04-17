@@ -35,10 +35,18 @@ class FilterSelectDialog(Dialog):
                         defaultbutton = 'OK',
                         command = command,
                        )
-        frame = self.interior()
+        main_frame = self.interior()
+        #band selection
+        band_select_frame = tk.Frame(main_frame)
+        tk.Label(band_select_frame, text="Band Selection:", font = HEADING_FONT).pack(side='top', anchor="nw",padx=HEADING_PADX)        
+        self.band_selectA_button = tk.Button(band_select_frame,text='O2A',command = lambda: self.band_select('A'))
+        self.band_selectA_button.pack(side='left', anchor="nw", padx = 10)
+        self.band_selectB_button = tk.Button(band_select_frame,text='H2O',command = lambda: self.band_select('B'))
+        self.band_selectB_button.pack(side='left', anchor="nw")
+        band_select_frame.pack(side='top',fill='x', anchor="nw", padx = 10)
         #build buttons for wheel B
-        frameB = tk.Frame(frame)
-        tk.Label(frameB, text="Wheel B (Band Pass)", font = HEADING_FONT).pack(anchor='w', padx=HEADING_PADX)
+        frameB = tk.Frame(main_frame)
+        tk.Label(frameB, text="Filter Wheel B (Band Pass)", font = HEADING_FONT).pack(anchor='w', padx=HEADING_PADX)
         for index, text in choicesB:
             tk.Radiobutton(frameB,
                            text=text,
@@ -46,8 +54,8 @@ class FilterSelectDialog(Dialog):
                            variable=self.varB, 
                            value=index).pack(side="top", anchor='w')
         #build buttons for wheel A
-        frameA = tk.Frame(frame)
-        tk.Label(frameA, text="Wheel A (Auxiliary)", font = HEADING_FONT).pack(anchor='w', padx=HEADING_PADX)
+        frameA = tk.Frame(main_frame)
+        tk.Label(frameA, text="Filter Wheel A (Auxiliary)", font = HEADING_FONT).pack(anchor='w', padx=HEADING_PADX)
         for index, text in choicesA:
             tk.Radiobutton(frameA,
                            text=text,

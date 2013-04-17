@@ -24,7 +24,7 @@ from filter_select_dialog import FilterSelectDialog
 WINDOW_TITLE      = "YES O2AB Calibrate"
 WAIT_DELAY        = 100 #milliseconds
 TEXT_BUFFER_SIZE  = 10*2**20 #ten megabytes
-SPECTRAL_FIGSIZE  = (10,5) #inches
+SPECTRAL_FIGSIZE  = (6,5) #inches
 MAX_IMAGESIZE     = (800,600)
 
 DEFAULT_EXPOSURE_TIME = 10 #milliseconds
@@ -93,13 +93,7 @@ class GUI:
         tk.Label(left_panel, text="Optics Controls:", font = "Helvetica 14 bold").pack(side='top',fill='x', anchor="nw")
         self.filter_select_button = tk.Button(left_panel,text='Filter Select',command = self.filter_select)
         self.filter_select_button.pack(side='top',fill='x', anchor="nw")
-        band_select_frame = tk.Frame(left_panel)
-        tk.Label(band_select_frame, text="Band Selection:", font = "Helvetica 10 bold").pack(side='top', anchor="nw")        
-        self.band_selectA_button = tk.Button(band_select_frame,text='A',command = lambda: self.band_select('A'))
-        self.band_selectA_button.pack(side='left', anchor="nw")
-        self.band_selectB_button = tk.Button(band_select_frame,text='B',command = lambda: self.band_select('B'))
-        self.band_selectB_button.pack(side='left', anchor="nw")
-        band_select_frame.pack(side='top',fill='x', anchor="nw")
+        
         #band fine adjustment controls
         band_adjust_button_frame = tk.Frame(left_panel)
         tk.Label(band_adjust_button_frame, text="Band Fine Adjust:", font = "Helvetica 10 bold").pack(side='top', anchor="nw")        
@@ -211,10 +205,11 @@ class GUI:
         self._is_running = False
     
     def filter_select(self):
-        self.app.print_comment("Selecting filter...")
+        self.app.print_comment("Selecting filter:")
         #get the current settings
         filter_wheel = self.app.config.load_device("filter_wheel")
         pos = filter_wheel.get_position()
+        self.app.print_comment("current postion: %d" % pos)
         A = pos // 5
         B = pos %  5
         itemsB = sorted(filter_wheel.kwargs['wheel_B'].items())
@@ -237,7 +232,7 @@ class GUI:
         B = self.filter_select_dialog.varB.get()
         A = self.filter_select_dialog.varA.get()
         pos = 5*A + B
-        self.app.print_comment("Setting Filter Wheel to pos = %d..." % pos)
+        self.app.print_comment("changing to position %d..." % pos)
         filter_wheel = self.app.config.load_device("filter_wheel")
         filter_wheel.set_position(pos)
         self.app.print_comment("finished.")

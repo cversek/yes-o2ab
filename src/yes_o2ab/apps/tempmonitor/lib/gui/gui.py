@@ -6,7 +6,7 @@ import ttk
 try:
     from collections import OrderedDict
 except ImportError:
-    from automat.support.odict import OrderedDict
+    from yes_o2ab.support.odict import OrderedDict
 #3rd party packages
 from PIL import Image, ImageTk
 import Pmw
@@ -27,10 +27,10 @@ from settings_dialog import SettingsDialog
 WINDOW_TITLE      = "YES O2AB Temperature Monitor"
 WAIT_DELAY        = 100 #milliseconds
 TEXT_BUFFER_SIZE  = 10*2**20 #ten megabytes
-TEMPERATURE_FIGSIZE  = (10,5) #inches
+TEMPERATURE_FIGSIZE  = (8,4) #inches
 
 DEFAULT_RUN_INTERVAL  = 10 #seconds
-DATA_FORMAT = '%.18e'
+DATA_FORMAT = '%0.2f'
 
 CONFIRMATION_TEXT_DISPLAY_TEXT_HEIGHT = 40
 CONFIRMATION_TEXT_DISPLAY_TEXT_WIDTH  = 80
@@ -89,14 +89,15 @@ class GUI:
         self.stop_button.pack(side='top',fill='x', anchor="nw")
         self.run_once_button = tk.Button(left_panel,text='Run Once',command = self.run_once)
         self.run_once_button.pack(side='top',fill='x', anchor="nw")
+        self.export_data_button = tk.Button(left_panel,text='Export Data',command = self.export_data, state='disabled')
+        self.export_data_button.pack(side='bottom',anchor="sw")
         left_panel.pack(fill='y',expand='no',side='left', padx = 10)
         #create an tk embedded figure for temperature display
         mid_panel = tk.Frame(win)
         self.temperature_plot_template = TemperaturePlot()
         self.temperature_figure_widget = EmbeddedFigure(mid_panel, figsize=TEMPERATURE_FIGSIZE)
         self.temperature_figure_widget.pack(side='left',fill='both', expand='yes')
-        self.export_data_button = tk.Button(mid_panel,text='Export Data',command = self.export_data, state='disabled')
-        self.export_data_button.pack(side='left',anchor="se")
+        
         mid_panel.pack(fill='both', expand='yes',side='left')
         #build the right panel
         right_panel = tk.Frame(win)

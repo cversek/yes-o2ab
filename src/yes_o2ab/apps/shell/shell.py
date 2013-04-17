@@ -98,11 +98,11 @@ class Application:
         ipshell = None
         try:
             ipshell = IPYTHON_SHELL(user_ns = self.user_ns, banner1 = status_msg) #FIXME change made for ipython >= 0.13
+            ipshell.mainloop() #FIXME change made for ipython >= 0.13
         except TypeError: #FIXME support older versions
-            ipshell = IPYTHON_SHELL(user_ns = self.user_ns, banner = status_msg)
-        ipshell.mainloop() #banner = status_msg) #FIXME change made for ipython >= 0.13
-
-
+            ipshell = IPYTHON_SHELL(user_ns = self.user_ns)
+            ipshell.mainloop(banner = status_msg)
+            
 ################################################################################
 # Commands definition
 import Queue, threading, locale

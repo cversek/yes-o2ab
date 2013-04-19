@@ -27,6 +27,7 @@ def main():
     app = Application(skip_test = opts.skip_test,
                       ignore_device_errors = opts.ignore_device_errors,
                      )
+    app.initialize()
     if opts.detach:
         #detach the process from its controlling terminal
         from automat.system_tools.daemonize import detach 
@@ -38,8 +39,9 @@ def main():
     #give the app the ability to print to the GUI's textbox
     app.setup_textbox_printer(gui.print_to_text_display)
     #launch the app
+    
     gui.launch()
-    app.main()
+    
     
       
 if __name__ == "__main__":

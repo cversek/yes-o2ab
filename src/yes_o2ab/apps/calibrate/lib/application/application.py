@@ -24,6 +24,9 @@ YES O2AB Calibrate %(version)s
 *******************************************************************************
 """
 DEFAULT_EXPTIME = 10 # milliseconds
+
+USED_CONTROLLERS = ['band_switcher','filter_switcher']
+
 ###############################################################################
 #Helper Functions
 def stream_print(text, 
@@ -38,7 +41,7 @@ def stream_print(text,
             stream.write(eol)
         stream.flush()
         
- ###############################################################################       
+################################################################################       
 class Application:
     def __init__(self, 
                  intro_msg       = None, 
@@ -73,12 +76,44 @@ class Application:
         log_dir      = self.config['paths']['log_dir']    
         log_filepath = os.sep.join((log_dir,'log.txt'))
         self.log_stream = open(log_filepath,'a')
-        self.devices     = {}
-        self.controllers = {}
+        self.devices     = OrderedDict()
+        self.controllers = OrderedDict()
+        self.metadata = OrderedDict()
         #create an event for synchronize forced shutdown
         self.abort_event = threading.Event()
         #spectral attributes
         self.last_spectrum = None
+        
+    def initialize(self):
+        for name in USED_CONTROLLERS:
+            self.print_comment("\tLoading and initializing controller '%s'..." % name)
+            controller = self.load_controller(name)
+            controller.initialize()
+            self.print_comment("\tcompleted")
+        #get some configuration details
+        filter_wheel = self.load_device('filter_wheel')
+        itemsB = sorted(filter_wheel.kwargs['wheel_B'].items())
+        self.filter_B_types = [(int(slot.strip("slot")),text) for slot, text in itemsB]
+        itemsA = sorted(filter_wheel.kwargs['wheel_A'].items())
+        self.filter_A_types = [(int(slot.strip("slot")),text) for slot, text in itemsA]
+        self.query_metadata()
+            
+    def query_metadata(self):
+        band_switcher   = self.load_controller('band_switcher')
+        filter_switcher = self.load_controller('filter_switcher')
+        band = band_switcher.band
+        if band is None:
+            band = "(unknown)"
+        pos = filter_switcher.position
+        B = pos // 5
+        A = pos %  5
+        self.metadata['band']     = band
+        self.metadata['filt_pos'] = pos
+        self.metadata['filt_B_num']  = B
+        self.metadata['filt_A_num']  = A
+        self.metadata['filt_B_type'] = self.filter_B_types[B][1]
+        self.metadata['filt_A_type'] = self.filter_A_types[A][1]
+        return self.metadata
  
     def setup_textbox_printer(self, textbox_printer):
         self.textbox_printer = textbox_printer
@@ -99,7 +134,7 @@ class Application:
         self.print_comment("Logged: " + msg)        
               
     def load_device(self,handle):
-        self.print_comment("Loading device '%s'..." % handle, eol='') 
+        #self.print_comment("Loading device '%s'..." % handle, eol='') 
         try:
             device   =  self.config.load_device(handle)
             self.devices[handle] = device   #cache the device
@@ -120,18 +155,15 @@ class Application:
             else:
                 warn("ignoring following error:\n---\n%s\n---" % exc, RuntimeWarning)
                 
-                       
-
     def load_controller(self, name):
         try:
-            self.print_comment("Loading controller '%s'..." % name)
             try:
                 controller = self.config.load_controller(name)
                 self.controllers[name] = controller
-                self.print_comment("    success.")
+                #self.print_comment("    success.")
                 return controller
             except Exception, exc:
-                self.print_comment("    failed loading controller '%s' with exception: %s" % (name, exc))
+                #self.print_comment("    failed loading controller '%s' with exception: %s" % (name, exc))
                 if not self.ignore_device_errors:
                     raise exc
                 else:
@@ -161,9 +193,23 @@ class Application:
         self.last_spectrum = S
         return (S, I)
 
-    def select_band(self, band):
-        self.print_comment("Switching Band.")
+    def select_band(self, band, blocking = True):
+        "run the band switcher "
+        self.print_comment("select band")
         band_switcher = self.load_controller('band_switcher')
-        band_switcher.select_band(band)
+        band_switcher.set_configuration(band=band)
+        if blocking:
+            band_switcher.run()
+        else:
+            band_switcher.start() #run as seperate thread
+        
+    def select_filter(self, pos, blocking = True):
+        "run the filter switcher in a seperate thread"
+        filter_switcher = self.load_controller('filter_switcher')
+        filter_switcher.set_configuration(position=pos)
+        if blocking:
+            filter_switcher.run()
+        else:
+            filter_switcher.start() #run as seperate thread
 
         

@@ -26,6 +26,7 @@ WAIT_DELAY        = 100 #milliseconds
 TEXT_BUFFER_SIZE  = 10*2**20 #ten megabytes
 SPECTRAL_FIGSIZE  = (6,5) #inches
 MAX_IMAGESIZE     = (800,600)
+LOOP_DELAY        = 100 #milliseconds
 
 DEFAULT_EXPOSURE_TIME = 10 #milliseconds
 DEFAULT_RUN_INTERVAL  = 10 #seconds
@@ -33,6 +34,8 @@ FINE_ADJUST_STEP_SIZE_DEFAULT = 10 #steps
 
 CONFIRMATION_TEXT_DISPLAY_TEXT_HEIGHT = 40
 CONFIRMATION_TEXT_DISPLAY_TEXT_WIDTH  = 80
+
+FIELD_LABEL_FONT = "Courier 10 normal"
 
 SETTINGS_FILEPATH = os.path.expanduser("~/.yes_o2ab_calibrate_settings.db")
 ###############################################################################
@@ -79,7 +82,7 @@ class GUI:
         #build the left panel
         left_panel = tk.Frame(win)
         #capture controls
-        tk.Label(left_panel, text="Capture Controls:", font = "Helvetica 14 bold").pack(side='top',fill='x', anchor="nw")
+        tk.Label(left_panel, text="Capture Controls:", font = "Helvetica 14 bold").pack(side='top',anchor="w")
         self.change_settings_button = tk.Button(left_panel,text='Change Settings',command = self.change_settings)
         self.change_settings_button.pack(side='top',fill='x', anchor="sw")
         self.run_continually_button  = tk.Button(left_panel,text='Run Continually',command = self.run_continually)
@@ -90,8 +93,40 @@ class GUI:
         self.run_once_button.pack(side='top',fill='x', anchor="nw")
         #optics controls
         tk.Label(left_panel, pady = 10).pack(side='top',fill='x', anchor="nw")
-        tk.Label(left_panel, text="Optics Controls:", font = "Helvetica 14 bold").pack(side='top',fill='x', anchor="nw")
-        self.filter_select_button = tk.Button(left_panel,text='Filter Select',command = self.filter_select)
+        tk.Label(left_panel, text="Optics Controls:", font = "Helvetica 14 bold").pack(side='top',anchor="w")
+        self.band_field = Pmw.EntryField(left_panel,
+                                         labelpos='w',
+                                         label_text="             band:",
+                                         label_font = FIELD_LABEL_FONT,
+                                         entry_width=9,
+                                         entry_state='readonly',
+                                        )
+        self.band_field.pack(side='top', anchor="w", expand='no')
+        self.filter_B_field = Pmw.EntryField(left_panel,
+                                         labelpos='w',
+                                         label_text="(B)and-pass filt.:",
+                                         label_font = FIELD_LABEL_FONT,
+                                         entry_width=9,
+                                         entry_state='readonly',
+                                        )
+        self.filter_B_field.pack(side='top', anchor="w", expand='no')
+        self.filter_A_field = Pmw.EntryField(left_panel,
+                                         labelpos='w',
+                                         label_text="(A)uxiliary filt.:",
+                                         label_font = FIELD_LABEL_FONT,
+                                         entry_width=9,
+                                         entry_state='readonly',
+                                        )
+        self.filter_A_field.pack(side='top', anchor="w", expand='no')
+        self.filter_position_field = Pmw.EntryField(left_panel,
+                                         labelpos='w',
+                                         label_text="filt. pos. (5B+A):",
+                                         label_font = FIELD_LABEL_FONT,
+                                         entry_width=9,
+                                         entry_state='readonly',
+                                        )
+        self.filter_position_field.pack(side='top', anchor="w", expand='no')
+        self.filter_select_button = tk.Button(left_panel,text='Band/Filter Select',command = self.filter_select)
         self.filter_select_button.pack(side='top',fill='x', anchor="nw")
         
         #band fine adjustment controls
@@ -105,25 +140,27 @@ class GUI:
         self.band_adjust_stepsize_field = Pmw.EntryField(left_panel,
                                                          labelpos='w',
                                                          label_text="step size:",
+                                                         label_font = FIELD_LABEL_FONT,
                                                          value = FINE_ADJUST_STEP_SIZE_DEFAULT,
                                                          entry_width=4,
                                                          )
-        self.band_adjust_stepsize_field.pack(side='top', anchor="nw", expand='no')
+        self.band_adjust_stepsize_field.pack(side='top', anchor="w", expand='no')
         self.band_adjust_position_field = Pmw.EntryField(left_panel,
                                                          labelpos='w',
                                                          label_text=" position:",
+                                                         label_font = FIELD_LABEL_FONT,
                                                          entry_width=8,
-                                                         entry_state='disabled',
+                                                         entry_state='readonly',
                                                          )
-        self.band_adjust_position_field.pack(side='top', anchor="nw", expand='no')
+        self.band_adjust_position_field.pack(side='top', anchor="w", expand='no')
         #white field
-        whitefield_pos_frame = tk.Frame(left_panel)
-        tk.Label(whitefield_pos_frame, text="White Field Pos.:", font = "Helvetica 10 bold").pack(side='top', anchor="nw")        
-        self.whitefield_posIN_button = tk.Button(whitefield_pos_frame,text='IN',command = lambda: self.set_whitefield(True))
-        self.whitefield_posIN_button.pack(side='left', anchor="nw")
-        self.whitefield_posOUT_button = tk.Button(whitefield_pos_frame,text='OUT',command = lambda: self.set_whitefield(False))
-        self.whitefield_posOUT_button.pack(side='left', anchor="nw")
-        whitefield_pos_frame.pack(side='top',fill='x', anchor="nw")
+        flatfield_pos_frame = tk.Frame(left_panel)
+        tk.Label(flatfield_pos_frame, text="Flat Field Pos.:", font = "Helvetica 10 bold").pack(side='top', anchor="nw")        
+        self.flatfield_posIN_button = tk.Button(flatfield_pos_frame,text='IN',command = lambda: self.set_flatfield(True))
+        self.flatfield_posIN_button.pack(side='left', anchor="nw")
+        self.flatfield_posOUT_button = tk.Button(flatfield_pos_frame,text='OUT',command = lambda: self.set_flatfield(False))
+        self.flatfield_posOUT_button.pack(side='left', anchor="nw")
+        flatfield_pos_frame.pack(side='top',fill='x', anchor="nw")
                           
         left_panel.pack(fill='y',expand='no',side='left', padx = 10)
         #build the middle panel - a tabbed notebook
@@ -151,19 +188,84 @@ class GUI:
         self.text_display  = TextDisplayBox(right_panel,text_height=15, buffer_size = TEXT_BUFFER_SIZE)
         self.text_display.pack(side='left',fill='both',expand='yes')
         right_panel.pack(fill='both', expand='yes',side='right')
+        
+        #build the filter selection dialog
+        self.filter_select_dialog = FilterSelectDialog(
+                                                       parent = self.win, 
+                                                       choicesB = self.app.filter_B_types,
+                                                       choicesA = self.app.filter_A_types,
+                                                       )
+        self.filter_select_dialog.withdraw()
         #build the confirmation dialog
         self.settings_dialog = SettingsDialog(self.win)
         self.settings_dialog.withdraw()
         self._load_settings()
         #run modes
         self._is_running = False
-       
+        
+        
     def launch(self):
         #run the GUI handling loop
         IgnoreKeyboardInterrupt()
+        self.update_fields()
         self.win.deiconify()
         self.win.mainloop()
         NoticeKeyboardInterrupt()
+       
+        
+    def update_fields(self):
+        md = self.app.query_metadata()
+        self.filter_position_field.setvalue(str(md['filt_pos']))
+        B = md['filt_B_num']
+        A = md['filt_A_num']
+        B_type = md['filt_B_type']
+        A_type = md['filt_A_type']
+        B_label = "%d, \"%s\"" % (B,B_type)
+        A_label = "%d, \"%s\"" % (A,A_type)
+        self.filter_B_field.setvalue(B_label)
+        self.filter_A_field.setvalue(A_label)
+        self.filter_select_dialog.varB.set(B)
+        self.filter_select_dialog.varA.set(A)
+        band = md['band']
+        self.band_field.setvalue(band)
+        if band in ['O2A','H2O']:
+            self.filter_select_dialog.select_band(band)
+    
+    def busy(self):
+        self.disable_buttons()
+        self.win.config(cursor="watch")
+        
+    def not_busy(self):
+        self.enable_buttons()
+        self.win.config(cursor="")
+        
+    def disable_buttons(self):
+        self.change_settings_button.configure(state="disabled")
+        self.run_continually_button.configure(state="disabled")
+        #self.stop_button.configure(state="disabled")
+        self.run_once_button.configure(state="disabled")
+        self.filter_select_button.configure(state="disabled")
+        self.band_adjustL_button.configure(state="disabled")
+        self.band_adjustR_button.configure(state="disabled")
+        self.flatfield_posIN_button.configure(state="disabled")
+        self.flatfield_posOUT_button.configure(state="disabled")
+        self.export_spectrum_button.configure(state="disabled")
+        self.save_image_button.configure(state="disabled")
+        
+    def enable_buttons(self):
+        self.change_settings_button.configure(state="normal")
+        self.run_continually_button.configure(state="normal")
+        #self.stop_button.configure(state="normal")
+        self.run_once_button.configure(state="normal")
+        self.filter_select_button.configure(state="normal")
+        self.band_adjustL_button.configure(state="normal")
+        self.band_adjustR_button.configure(state="normal")
+        self.flatfield_posIN_button.configure(state="normal")
+        self.flatfield_posOUT_button.configure(state="normal")
+        self.export_spectrum_button.configure(state="normal")
+        self.save_image_button.configure(state="normal")
+       
+    
 
     def change_settings(self):
         self.app.print_comment("changing capture settings...")
@@ -206,59 +308,124 @@ class GUI:
     
     def filter_select(self):
         self.app.print_comment("Selecting filter:")
-        #get the current settings
-        filter_wheel = self.app.config.load_device("filter_wheel")
-        pos = filter_wheel.get_position()
-        self.app.print_comment("current postion: %d" % pos)
-        A = pos // 5
-        B = pos %  5
-        itemsB = sorted(filter_wheel.kwargs['wheel_B'].items())
-        choicesB = [(int(slot.strip("slot")),text) for slot, text in itemsB]
-        itemsA = sorted(filter_wheel.kwargs['wheel_A'].items())
-        choicesA = [(int(slot.strip("slot")),text) for slot, text in itemsA]
-        #build the confirmation dialog
-        self.filter_select_dialog = FilterSelectDialog(self.win, 
-                                                       choicesB = choicesB,
-                                                       choicesA = choicesA,
-                                                       command = self._set_filter_pos
-                                                       )
-        self.filter_select_dialog.varB.set(B)
-        self.filter_select_dialog.varA.set(A)
-        self.filter_select_dialog.withdraw()
-        self.filter_select_dialog.activate()
+        self.update_fields()
+        choice = self.filter_select_dialog.activate()
+        if choice == 'OK':
+            self._set_band_and_filter_pos()
 
 
-    def _set_filter_pos(self, event):
+    def _set_band_and_filter_pos(self):
+        new_band = self.filter_select_dialog.varBand.get()
         B = self.filter_select_dialog.varB.get()
         A = self.filter_select_dialog.varA.get()
-        pos = 5*A + B
-        self.app.print_comment("changing to position %d..." % pos)
-        filter_wheel = self.app.config.load_device("filter_wheel")
-        filter_wheel.set_position(pos)
-        self.app.print_comment("finished.")
-        self.filter_select_dialog.deactivate()
+        pos = 5*B + A
+        filter_B_type = self.app.filter_B_types[B][1]
+        #if no explicit choice was made, choose based on B filter_select
+        if (new_band == '(unknown)') and (B == 1 or B == 2): 
+            if   B == 1:
+                default_band = 'O2A'
+            elif B == 2:
+                default_band = 'H2O'
+            msg = "The band state was (unknown), but the '%s' filter was selected, should we set the band state to '%s'?" % (filter_B_type,default_band)
+            dlg = Pmw.MessageDialog(parent = self.win,
+                                    message_text = msg,
+                                    buttons = ('OK','Cancel'),
+                                    defaultbutton = 'OK',
+                                    title = "Unknown Band Warning",
+                                    )
+            choice = dlg.activate()
+            dlg.deactivate()
+            if choice == 'OK':
+                self.app.print_comment("Defaulting band selection.")
+                new_band = default_band
+            elif choice == 'Cancel':
+                self.app.print_comment("Forcing through '(unknown)' band state.")  
+        #this is a conflict
+        elif (new_band == '(unknown)') or (new_band == 'O2A' and B == 2) or (new_band == 'H2O' and B == 1):      #conflict
+            if new_band == '(unknown)':
+                msg = "Warning: the band state is '%s', please 'Retry' or 'Force' the selection." % new_band
+            else:
+                msg = "Warning: the band state '%s' is in conflict with the filter selection '%s', please 'Retry' or 'Force' the selection." % (new_band,filter_B_type)
+            dlg = Pmw.MessageDialog(parent = self.win,
+                                    message_text = msg,
+                                    buttons = ('Retry','Force'),
+                                    defaultbutton = 'Retry',
+                                    title = "Unknown Band Warning",
+                                    )
+            choice = dlg.activate()
+            dlg.deactivate()
+            if choice == 'Retry':
+                self.app.print_comment("Retrying selection.")
+                self.filter_select_dialog.deactivate()
+                self.filter_select()
+                #do not run the rest of this function on recursive return!
+                return
+            elif choice == 'Force':
+                self.app.print_comment("forcing through '(unknown)' band state.")
+        #throw up a busy message
+        msg = "Please wait while the band is switched to '%s' and the filter is switched to position %d..." % (new_band,pos)
+        self.busy()
+        self.wait_msg_window = tk.Toplevel(self.win)
+        tk.Label(self.wait_msg_window,text=msg).pack(fill="both",expand="yes", padx=1,pady=1)
+        # get screen width and height
+        ws = self.win.winfo_screenwidth()
+        hs = self.win.winfo_screenheight()
+        w = ws/2
+        h = hs/4
+        # calculate position x, y
+        x = (ws/2) - (w/2)
+        y = (hs/2) - (h/2)
+        self.wait_msg_window.geometry("%dx%d+%d+%d" % (w,h,x,y))
+        self.wait_msg_window.update()
+        self.wait_msg_window.lift()
+        self.wait_msg_window.grab_set()
+        self.app.print_comment(msg)
+        #get the current settings
+        band_switcher = self.app.config.load_controller('band_switcher')
+        curr_band = band_switcher.band
+        #change band state if specified
+        if (new_band != '(unknown)') and (curr_band != new_band):
+            #change the band
+            self.band_field.setvalue("(changing)")
+            self.app.print_comment("changing band from '%s' to '%s'... (thread)" % (curr_band,new_band))
+            self.app.select_band(new_band, blocking = False) #threaded!
+        else:
+            self.app.print_comment("not changing band")
+        #change the filter position
+        self.filter_position_field.setvalue("(changing)")
+        self.filter_B_field.setvalue("(changing)")
+        self.filter_A_field.setvalue("(changing)")
+        self.app.print_comment("changing filter wheel to position %d... (thread)" % pos)
+        self.app.select_filter(pos, blocking = False) #threaded!
+        #now wait for the parts to move
+        self._wait_on_band_and_filter_change_loop()
+        
+        
+    def _wait_on_band_and_filter_change_loop(self):
+        #check the controller states
+        band_switcher   = self.app.load_controller('band_switcher')
+        filter_switcher = self.app.load_controller('filter_switcher')
+        if band_switcher.thread_isAlive() or filter_switcher.thread_isAlive(): 
+            #reschedule loop
+            self.win.after(LOOP_DELAY,self._wait_on_band_and_filter_change_loop)
+        else:
+            self.update_fields()
+            self.not_busy()
+            self.app.print_comment("finished")
+            self.wait_msg_window.destroy()
+            self.filter_select_dialog.deactivate()
+        
 
-    def band_select(self, band):
-        if band == 'A':
-            inactive_color = self.band_selectA_button.cget('bg')
-            self.band_selectA_button.config(state='disabled', bg='green')
-            self.band_selectB_button.config(state='normal', bg= inactive_color)
-        elif band == 'B':
-            inactive_color = self.band_selectB_button.cget('bg')
-            self.band_selectB_button.config(state='disabled', bg='green')
-            self.band_selectA_button.config(state='normal', bg= inactive_color)
-        self.app.select_band(band)
-    
-    def set_whitefield(self, state):
+    def set_flatfield(self, state):
         if state == True:
-            inactive_color = self.whitefield_posIN_button.cget('bg')
-            self.whitefield_posIN_button.config(state='disabled', bg='green')
-            self.whitefield_posOUT_button.config(state='normal', bg= inactive_color)
+            inactive_color = self.flatfield_posIN_button.cget('bg')
+            self.flatfield_posIN_button.config(state='disabled', bg='green')
+            self.flatfield_posOUT_button.config(state='normal', bg= inactive_color)
         elif state == False:
-            inactive_color = self.whitefield_posOUT_button.cget('bg')
-            self.whitefield_posOUT_button.config(state='disabled', bg='green')
-            self.whitefield_posIN_button.config(state='normal', bg= inactive_color)
-        #self.app.set_whitefield(state) #TODO
+            inactive_color = self.flatfield_posOUT_button.cget('bg')
+            self.flatfield_posOUT_button.config(state='disabled', bg='green')
+            self.flatfield_posIN_button.config(state='normal', bg= inactive_color)
+        #self.app.set_flatfield(state) #TODO
 
     def export_spectrum(self):
         self.app.print_comment("Exporting data...")

@@ -11,19 +11,22 @@ try:
 except ImportError:
     from yes_o2ab.support.odict import OrderedDict
 ###############################################################################
-
+DEFAULT_CONFIGURATION = OrderedDict([
+    ("band",None),
+])
 
 ###############################################################################
 class Interface(Controller):
     def __init__(self,**kwargs):
         self.band = None
+        #kwargs.get(
         Controller.__init__(self, **kwargs)
         
     def initialize(self):
         band_motor = self.devices['band_motor']
         band_motor.motor_controller.initialize()
         #ensure windings are off
-        self.set_windings('off') 
+        self.set_windings('off')
     
     def set_windings(self, state = 'on'):
         "set current to windings, 'state' must be 'on' or 'off'"
@@ -40,6 +43,8 @@ class Interface(Controller):
         """switches betwen the 'H2O' and 'O2A' bands, windings are
            always set 'off' upon completion (even during an error state)
         """
+        if not band in ['O2A','H2O']:
+            raise ValueError, "'band' must be 'H2O' or 'O2A'"
         #configure the devices
         band_motor = self.devices['band_motor']
         try:
@@ -53,12 +58,11 @@ class Interface(Controller):
             #ensure windings are on
             self.set_windings('on')
             band_motor.configure_limit_sensors(sensor_mode=2) # 2 sensor mode
-            if band == 'H2O':     #system is driven CW to Limit
-                band_motor.seek_home('CW')
-            elif band == 'O2A':   #system is driven CCW to Limit
+            if band == 'O2A':   #system is driven CCW to Limit
                 band_motor.seek_home('CCW')
-            else:
-                raise ValueError, "'band' must be 'H2O' or 'O2A'"
+            elif band == 'H2O':     #system is driven CW to Limit
+                band_motor.seek_home('CW')
+                
             #in no band while moving
             self.band = None
             #wait until moving stops
@@ -92,9 +96,13 @@ class Interface(Controller):
             
             
     def main(self):
-        pass
-        #picomotorA = self.devices['picomotorA']
-        #picomotorB = self.devices['picomotorB']
+        band = self.configuration['band']
+        if band is None:
+            return
+        else:
+            self.select_band(band)
+        self.reset() #reset the controller to be used again
+        
        
 class InteractiveInterface: 
     def __init__(self,**kwargs):
@@ -118,7 +126,6 @@ class InteractiveInterface:
         self.band = self.controller.band
             
 def get_interface(**kwargs):
-    print kwargs
     interface_mode = kwargs.pop('interface_mode','threaded')
     if   interface_mode == 'threaded':
         return Interface(**kwargs)

@@ -184,10 +184,10 @@ class Interface(Model, SerialCommunicationsMixIn):
     def _init_command_prompt(self, attempts = 5):
         for i in range(attempts):
             #initialize the prompt
-            print "!!! INIT PROMPT"
+            #print "!!! INIT PROMPT"
             self._send('')
             success, resp = self._read_until_prompt()
-            print "!!! INIT PROMPT RESP:", success, resp
+            #print "!!! INIT PROMPT RESP:", success, resp
             if success:
                 return
             time.sleep(PROMPT_RETRY_TIME)
@@ -195,10 +195,10 @@ class Interface(Model, SerialCommunicationsMixIn):
             raise IOError("could not initialize command prompt of %s in %d attempts" % (self.identify(),attempts))
     
     def _send_command(self, cmd):
-        print "!!! SEND COMMAND:", cmd
+        #print "!!! SEND COMMAND:", cmd
         #send the command one character at a time
         for c in cmd:
-            print "\t",c
+            #print "\t",c
             self.ser.write(c)
             self.ser.flushOutput()
             time.sleep(DELAY)
@@ -207,13 +207,13 @@ class Interface(Model, SerialCommunicationsMixIn):
         self.ser.flushOutput()
         
     def _exchange_command(self, cmd):
-        print "!!! EXCHANGE COMMAND:", cmd
+        #print "!!! EXCHANGE COMMAND:", cmd
         self.ser.flushInput()  #ignore crap in the buffer
         #self._init_command_prompt()
         self._send_command(cmd)
         time.sleep(0.5)
         success, buff = self._read_until_prompt()
-        print "!!! RESP:", success,buff
+        #print "!!! RESP:", success,buff
         if not success:
             raise IOError, "could not verify command: %s" % cmd
         return "".join(buff)
@@ -235,13 +235,13 @@ class Interface(Model, SerialCommunicationsMixIn):
                 raise ValueError, "bad command syntax:", line
  
     def _reset(self):
-        print "!!! BEFORE RESET"
+        #print "!!! BEFORE RESET"
         #self._init_command_prompt()
         self._send_command("RESET\r\n")
         time.sleep(RESET_SLEEP_TIME)
         #self.ser.flushInput()  #ignore crap in the buffer
         #self.ser.flushOutput()  #ignore crap in the buffer
-        print "!!! AFTER RESET"
+        #print "!!! AFTER RESET"
         #self._init_command_prompt()
 
     #--------------------------------------------------------------------------

@@ -18,7 +18,8 @@ class Interface(FLIDevice):
         self.kwargs = kwargs
         FLIDevice.__init__(self, serial_number=serial_number)
     def _init_device(self):
-        self.set_position(0)
+        #self.set_position(0)
+        pass
     #--------------------------------------------------------------------------
     # Implementation of the Filter Wheel Interface
     #--------------------------------------------------------------------------

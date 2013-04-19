@@ -20,8 +20,8 @@ class FilterSelectDialog(Dialog):
                  parent              = None,
                  choicesA = [],
                  choicesB = [],
-                 command = lambda e: None,
                  ):
+        self.varBand = tk.StringVar(value='(unknown)')
         self.varB = tk.IntVar()
         self.varA = tk.IntVar()
         padxB = max([len(text) for index, text in choicesB])
@@ -33,16 +33,15 @@ class FilterSelectDialog(Dialog):
                         title = TITLE, 
                         buttons = ('OK',),
                         defaultbutton = 'OK',
-                        command = command,
                        )
         main_frame = self.interior()
         #band selection
         band_select_frame = tk.Frame(main_frame)
         tk.Label(band_select_frame, text="Band Selection:", font = HEADING_FONT).pack(side='top', anchor="nw",padx=HEADING_PADX)        
-        self.band_selectA_button = tk.Button(band_select_frame,text='O2A',command = lambda: self.band_select('A'))
-        self.band_selectA_button.pack(side='left', anchor="nw", padx = 10)
-        self.band_selectB_button = tk.Button(band_select_frame,text='H2O',command = lambda: self.band_select('B'))
-        self.band_selectB_button.pack(side='left', anchor="nw")
+        self.band_selectO2A_button = tk.Button(band_select_frame,text='O2A',command = lambda: self.select_band('O2A'))
+        self.band_selectO2A_button.pack(side='left', anchor="nw", padx = 10)
+        self.band_selectH2O_button = tk.Button(band_select_frame,text='H2O',command = lambda: self.select_band('H2O'))
+        self.band_selectH2O_button.pack(side='left', anchor="nw")
         band_select_frame.pack(side='top',fill='x', anchor="nw", padx = 10)
         #build buttons for wheel B
         frameB = tk.Frame(main_frame)
@@ -69,6 +68,23 @@ class FilterSelectDialog(Dialog):
         "override activate to construct and send back the action and the new values"
         action = Dialog.activate(self)
         return action
+        
+    def select_band(self, band):
+        if band == 'O2A':
+            inactive_color = 'gray'
+            self.band_selectO2A_button.config(state='disabled', bg='green')
+            self.band_selectH2O_button.config(state='normal', bg= inactive_color)
+            self.varBand.set('O2A')
+        elif band == 'H2O':
+            inactive_color = 'gray'
+            self.band_selectH2O_button.config(state='disabled', bg='green')
+            self.band_selectO2A_button.config(state='normal', bg= inactive_color)
+            self.varBand.set('H2O')
+        else:
+            inactive_color = 'gray'
+            self.band_selectO2A_button.config(state='normal', bg=inactive_color)
+            self.band_selectH2O_button.config(state='normal', bg=inactive_color)
+            self.varBand.set('(unknown)')
 
 ###############################################################################
  

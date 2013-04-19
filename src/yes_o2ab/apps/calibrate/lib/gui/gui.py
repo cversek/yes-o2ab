@@ -25,7 +25,7 @@ WINDOW_TITLE      = "YES O2AB Calibrate"
 WAIT_DELAY        = 100 #milliseconds
 TEXT_BUFFER_SIZE  = 10*2**20 #ten megabytes
 SPECTRAL_FIGSIZE  = (6,5) #inches
-MAX_IMAGESIZE     = (800,600)
+MAX_IMAGESIZE     = (600,500)
 LOOP_DELAY        = 100 #milliseconds
 
 DEFAULT_EXPOSURE_TIME = 10 #milliseconds
@@ -174,14 +174,14 @@ class GUI:
         #create an tk embedded figure for spectral display
         self.spectral_plot_template = RawSpectrumPlot()
         self.spectral_figure_widget = EmbeddedFigure(tab1, figsize=SPECTRAL_FIGSIZE)
-        self.spectral_figure_widget.pack(side='left',fill='both', expand='yes')
+        self.spectral_figure_widget.pack(side='top',fill='both', expand='yes')
         self.export_spectrum_button = tk.Button(tab1,text='Export Spectrum',command = self.export_spectrum, state='disabled')
-        self.export_spectrum_button.pack(side='left',anchor="se")
+        self.export_spectrum_button.pack(side='bottom',anchor="sw")
         #create a tk Label widget for image display
         self.photo_label_widget = tk.Label(tab2)
-        self.photo_label_widget.pack(side='left',fill='both', expand='yes')
+        self.photo_label_widget.pack(side='top',fill='both', expand='yes')
         self.save_image_button = tk.Button(tab2,text='Save Image',command = self.save_image, state='disabled')
-        self.save_image_button.pack(side='left',anchor="se")
+        self.save_image_button.pack(side='bottom',anchor="sw")
         mid_panel.pack(fill='both', expand='yes',side='left')
         #build the right panel
         right_panel = tk.Frame(win)
@@ -299,7 +299,7 @@ class GUI:
         exptime = int(self.settings_dialog.form['exposure_time'])
         S, I = self.app.acquire_spectrum(exptime)   
         self._update_spectral_plot(S)
-        #self._update_image(I)
+        self._update_image(I)
         self.export_spectrum_button.config(state='normal') #data can now be exported
         self.save_image_button.config(state='normal') #data can now be exported
 
@@ -455,8 +455,16 @@ class GUI:
         exptime = int(self.settings_dialog.form['exposure_time'])
         default_filename = "%s_raw_image_exptime=%dms.png" % (dt_now_str,exptime) 
         fdlg = SaveFileDialog(self.win,title="Save Raw Spectrum Data")
+        ws = self.win.winfo_screenwidth()
+        hs = self.win.winfo_screenheight()
+        w = ws/2
+        h = hs/4
+        # calculate position x, y
+        x = (ws/2) - (w/2)
+        y = (hs/2) - (h/2)
+        fdlg.geometry("%dx%d+%d+%d" % (w,h,x,y))
+        
         userdata_path = self.app.config['paths']['data_dir']    
-
         filename = fdlg.go(dir_or_file = userdata_path, 
                            pattern="*.png", 
                            default=default_filename, 

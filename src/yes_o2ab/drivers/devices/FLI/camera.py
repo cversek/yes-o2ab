@@ -55,7 +55,21 @@ class Interface(FLIDevice):
     
     def save_image(self, filename):
         scipy.misc.imsave(filename, self.last_image)
-   
+    #--------------------------------------------------------------------------
+    # Query Functions
+    #--------------------------------------------------------------------------
+    def get_CC_temp(self):
+        "gets the Camera cooler's Cold-side (also CCD) temperature in degrees Celcius"
+        return self._driver.read_CCD_temperature()
+    
+    def get_CH_temp(self):
+        "gets the Camera cooler's Hot-side temperature in degrees Celcius"
+        return self._driver.read_base_temperature()
+        
+    def get_CC_power(self):
+        "gets the Camera cooler's power in watts"
+        return self._driver.get_cooler_power()
+           
     #--------------------------------------------------------------------------
       
 
@@ -73,4 +87,4 @@ def get_interface(serial_number, **kwargs):
 # TEST CODE
 ###############################################################################
 if __name__ == "__main__":
-    pass
+    camera = get_interface(serial_number='ML0133911')

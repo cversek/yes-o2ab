@@ -101,6 +101,7 @@ class Application:
     def query_metadata(self):
         band_switcher   = self.load_controller('band_switcher')
         filter_switcher = self.load_controller('filter_switcher')
+        image_capture   = self.load_controller('image_capture')
         band = band_switcher.band
         if band is None:
             band = "(unknown)"

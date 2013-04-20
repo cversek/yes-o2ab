@@ -64,8 +64,6 @@ def launch_MessageDialog(title, message_text, buttons = ('OK',), bitmap='', defa
 class GUI:
     def __init__(self, application):
         self.app = application
-        #signal that experiment is running
-        self.experiment_mode = False
         self.app.print_comment("Starting GUI interface:")
         self.app.print_comment("please wait while the application loads...")
         #build the GUI interface as a seperate window
@@ -200,9 +198,6 @@ class GUI:
         self.settings_dialog = SettingsDialog(self.win)
         self.settings_dialog.withdraw()
         self._load_settings()
-        #run modes
-        self._is_running = False
-        
         
     def launch(self):
         #run the GUI handling loop
@@ -210,8 +205,7 @@ class GUI:
         self.update_fields()
         self.win.deiconify()
         self.win.mainloop()
-        NoticeKeyboardInterrupt()
-       
+        NoticeKeyboardInterrupt()   
         
     def update_fields(self):
         md = self.app.query_metadata()
@@ -442,11 +436,8 @@ class GUI:
                            key = None
                           )
         if filename:
-            S = self.app.last_spectrum
-            savetxt(filename, S, 
-                    fmt='%.18e',
-                    delimiter=","
-                   )
+            self.app.export_spectrum(filename)
+            
 
     def save_image(self):
         self.app.print_comment("saving image...")

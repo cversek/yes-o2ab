@@ -3,7 +3,7 @@
 import os, sys, time, datetime, Queue, threading
 from warnings import warn
 #3rd party
-import numpy
+import numpy as np
 try:
     from collections import OrderedDict
 except ImportError:
@@ -13,6 +13,7 @@ from automat.core.hwcontrol.config.configuration import Configuration
 #from automat.services.configurator import ConfiguratorService
 #yes_o2ab framework provided
 import yes_o2ab.pkg_info
+from yes_o2ab.core.data_processing.spectrum_dataset import SpectrumDataSet
 #application local
 from   errors import ConfigurationError, DeviceError
 ###############################################################################
@@ -102,18 +103,23 @@ class Application:
         band_switcher   = self.load_controller('band_switcher')
         filter_switcher = self.load_controller('filter_switcher')
         image_capture   = self.load_controller('image_capture')
+        condition_monitor = self.load_controller('condition_monitor')
         band = band_switcher.band
         if band is None:
             band = "(unknown)"
         pos = filter_switcher.position
         B = pos // 5
         A = pos %  5
-        self.metadata['band']     = band
-        self.metadata['filt_pos'] = pos
+        self.metadata['timestamp']   = time.time()
+        self.metadata['band']        = band
+        self.metadata['filt_pos']    = pos
         self.metadata['filt_B_num']  = B
         self.metadata['filt_A_num']  = A
         self.metadata['filt_B_type'] = self.filter_B_types[B][1]
         self.metadata['filt_A_type'] = self.filter_A_types[A][1]
+        #gets a lot of condition readings (temperature, pressure, etc.)
+        sample = condition_monitor.acquire_sample()
+        self.metadata.update(sample)
         return self.metadata
  
     def setup_textbox_printer(self, textbox_printer):
@@ -123,7 +129,7 @@ class Application:
         buff = ""        
         if eol:        
             lines = text.split(eol)
-            buff = eol.join([ comment_prefix + line for line in lines])
+            buff = eol.join([comment_prefix + line for line in lines])
         else:
             buff = comment_prefix + text
         stream_print(buff, stream = self.output_stream, eol = eol)
@@ -192,7 +198,26 @@ class Application:
         #cache the last spectrum and image
         self.last_image = I
         self.last_spectrum = S
+        self.last_capture_metadata = self.query_metadata() #get freshest copy
         return (S, I)
+        
+    def export_spectrum(self, filename):
+        """export the spectrum in a data format matching the file extension
+           valid extensions: .csv 
+        """
+        S  = self.last_spectrum
+        md = self.last_capture_metadata.copy()
+        
+        spectrum_dataset = SpectrumDataSet(S,metadata=md)
+        
+        if   filename.endswith(".csv"):
+            spectrum_dataset.to_csv_file(filename)
+        elif filename.endswith(".db"):
+            spectrum_dataset.to_shelf(filename)
+        elif filename.endswith(".hd5"):
+            raise NotImplementedError("HDF5 formatting is not ready, please check back later!")
+        else:
+            raise ValueError("the filename extension was not recognized, it must end with: .csv or .hd5")
 
     def select_band(self, band, blocking = True):
         "run the band switcher "

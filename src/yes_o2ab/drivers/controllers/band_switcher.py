@@ -22,9 +22,14 @@ class Interface(Controller):
         #kwargs.get(
         Controller.__init__(self, **kwargs)
         
-    def initialize(self):
+    def initialize(self, **kwargs):
+        self.thread_init(**kwargs) #gets the threads working
         band_motor = self.devices['band_motor']
-        band_motor.motor_controller.initialize()
+        #send initialize event
+        info = OrderedDict()
+        info['timestamp'] = time.time()
+        self._send_event("BAND_SWITCHER_INITIALIZE", info)
+        self.initialize_devices()
         #ensure windings are off
         self.set_windings('off')
     

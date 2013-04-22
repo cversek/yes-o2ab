@@ -26,7 +26,13 @@ YES O2AB Calibrate %(version)s
 """
 DEFAULT_EXPTIME = 10 # milliseconds
 
-USED_CONTROLLERS = ['band_switcher','filter_switcher']
+USED_CONTROLLERS = [
+                    'image_capture',
+                    #'condition_monitor',
+                    'band_switcher',
+                    'filter_switcher', 
+                    'focus_adjuster',
+                   ]
 
 ###############################################################################
 #Helper Functions
@@ -102,21 +108,27 @@ class Application:
     def query_metadata(self):
         band_switcher   = self.load_controller('band_switcher')
         filter_switcher = self.load_controller('filter_switcher')
+        focus_adjuster = self.load_controller('focus_adjuster')
         image_capture   = self.load_controller('image_capture')
         condition_monitor = self.load_controller('condition_monitor')
+        
         band = band_switcher.band
         if band is None:
             band = "(unknown)"
-        pos = filter_switcher.position
-        B = pos // 5
-        A = pos %  5
+        filt_pos = filter_switcher.position
+        B = filt_pos // 5
+        A = filt_pos %  5
+        
+        focuser_pos = focus_adjuster.query_position()
+        
         self.metadata['timestamp']   = time.time()
         self.metadata['band']        = band
-        self.metadata['filt_pos']    = pos
+        self.metadata['filt_pos']    = filt_pos
         self.metadata['filt_B_num']  = B
         self.metadata['filt_A_num']  = A
         self.metadata['filt_B_type'] = self.filter_B_types[B][1]
         self.metadata['filt_A_type'] = self.filter_A_types[A][1]
+        self.metadata['focuser_pos'] = focuser_pos
         #gets a lot of condition readings (temperature, pressure, etc.)
         sample = condition_monitor.acquire_sample()
         self.metadata.update(sample)
@@ -185,21 +197,44 @@ class Application:
 #        camera.set_image_area(ul_x,ul_y,lr_x,lr_y)
 #        camera.set_exposure(exptime)
                 
-    def acquire_spectrum(self, exptime = DEFAULT_EXPTIME):
-        self.print_comment("Acquiring spectrum.")
-        #get the device handles
-        camera = self.load_device('camera')
-        self.print_comment("success.")
-        #acquire image and process into rudimentary spectrum
-        self.print_comment("Exposing for %d milliseconds..." % (exptime,), eol='')                
-        I = camera.take_photo(exptime)
-        self.print_comment("completed.") 
-        S = I.sum(axis=0)
+    def acquire_image(self,
+                      frametype = 'normal', 
+                      exptime   = DEFAULT_EXPTIME, 
+                      blocking  = True,
+                      ):
+        image_capture = self.load_controller('image_capture')
+        
+        self.last_capture_metadata = self.query_metadata() #get freshest copy
+        image_capture.set_configuration(frametype=frametype,
+                                        exposure_time=exptime,
+                                       ) 
+        if blocking:
+            image_capture.run() #this will block until image is acquired              
+        else:
+            image_capture.start() #this should not block
+            
+    def compute_spectrum(self):
+        image_capture = self.load_controller('image_capture')
+        I = image_capture.last_image
+        S = None
+        if not I is None:
+            S = I.sum(axis=0)
         #cache the last spectrum and image
         self.last_image = I
         self.last_spectrum = S
-        self.last_capture_metadata = self.query_metadata() #get freshest copy
-        return (S, I)
+        return S
+                      
+    
+#    def 
+#        I = camera.take_photo(exptime)
+#        
+#        self.print_comment("completed.") 
+#        S = I.sum(axis=0)
+#        #cache the last spectrum and image
+#        self.last_image = I
+#        self.last_spectrum = S
+#        self.last_capture_metadata = self.query_metadata() #get freshest copy
+#        return (S, I)
         
     def export_spectrum(self, filename):
         """export the spectrum in a data format matching the file extension
@@ -237,5 +272,18 @@ class Application:
             filter_switcher.run()
         else:
             filter_switcher.start() #run as seperate thread
+            
+    def adjust_focus(self, step, blocking = True):
+        step_size = abs(step)
+        step_direction = "+1"
+        if step < 0:
+            step_direction = "-1"
+        focus_adjuster = self.load_controller('focus_adjuster')
+        focus_adjuster.set_configuration(step_size=step_size,step_direction=step_direction)
+        if blocking:
+            focus_adjuster.run()
+        else:
+            focus_adjuster.start() #run as seperate thread
+        
 
         

@@ -69,6 +69,9 @@ class Interface(FLIDevice):
     def get_CC_power(self):
         "gets the Camera cooler's power in watts"
         return self._driver.get_cooler_power()
+    
+    def get_info(self):
+        return self._driver.get_info()
            
     #--------------------------------------------------------------------------
       

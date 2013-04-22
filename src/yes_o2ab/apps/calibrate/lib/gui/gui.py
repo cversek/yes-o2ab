@@ -29,7 +29,7 @@ MAX_IMAGESIZE     = (600,500)
 LOOP_DELAY        = 100 #milliseconds
 
 DEFAULT_EXPOSURE_TIME = 10 #milliseconds
-DEFAULT_RUN_INTERVAL  = 10 #seconds
+DEFAULT_CAPTURE_INTERVAL  = 10 #seconds
 FINE_ADJUST_STEP_SIZE_DEFAULT = 10 #steps
 
 CONFIRMATION_TEXT_DISPLAY_TEXT_HEIGHT = 40
@@ -83,12 +83,16 @@ class GUI:
         tk.Label(left_panel, text="Capture Controls:", font = "Helvetica 14 bold").pack(side='top',anchor="w")
         self.change_settings_button = tk.Button(left_panel,text='Change Settings',command = self.change_settings)
         self.change_settings_button.pack(side='top',fill='x', anchor="sw")
-        self.run_continually_button  = tk.Button(left_panel,text='Run Continually',command = self.run_continually)
-        self.run_continually_button.pack(side='top',fill='x', anchor="nw")
+        self._capture_mode = None
+        self.capture_once_button = tk.Button(left_panel,text='Run Once',command = self.capture_once)
+        self.capture_once_button.pack(side='top',fill='x', anchor="nw")
+        self.capture_on_adjust_button = tk.Button(left_panel,text='Run on Adjust',command = self.capture_on_adjust)
+        self.capture_on_adjust_button.pack(side='top',fill='x', anchor="nw")
+        self.capture_continually_button  = tk.Button(left_panel,text='Run Continually',command = self.capture_continually)
+        self.capture_continually_button.pack(side='top',fill='x', anchor="nw")
         self.stop_button = tk.Button(left_panel,text='Stop',command = self.stop, state='disabled')
         self.stop_button.pack(side='top',fill='x', anchor="nw")
-        self.run_once_button = tk.Button(left_panel,text='Run Once',command = self.run_once)
-        self.run_once_button.pack(side='top',fill='x', anchor="nw")
+        
         #optics controls
         tk.Label(left_panel, pady = 10).pack(side='top',fill='x', anchor="nw")
         tk.Label(left_panel, text="Optics Controls:", font = "Helvetica 14 bold").pack(side='top',anchor="w")
@@ -127,6 +131,7 @@ class GUI:
         self.filter_select_button = tk.Button(left_panel,text='Band/Filter Select',command = self.filter_select)
         self.filter_select_button.pack(side='top',fill='x', anchor="nw")
         
+        
         #band fine adjustment controls
         band_adjust_button_frame = tk.Frame(left_panel)
         tk.Label(band_adjust_button_frame, text="Band Fine Adjust:", font = "Helvetica 10 bold").pack(side='top', anchor="nw")        
@@ -151,6 +156,32 @@ class GUI:
                                                          entry_state='readonly',
                                                          )
         self.band_adjust_position_field.pack(side='top', anchor="w", expand='no')
+        
+        #focus adjustment controls
+        focus_adjust_button_frame = tk.Frame(left_panel)
+        tk.Label(focus_adjust_button_frame, text="Focus Adjust:", font = "Helvetica 10 bold").pack(side='top', anchor="nw")        
+        self.focus_adjustL_button = tk.Button(focus_adjust_button_frame,text='<--',command = lambda: self.focus_adjust('-1'))
+        self.focus_adjustL_button.pack(side='left', anchor="nw")
+        self.focus_adjustR_button = tk.Button(focus_adjust_button_frame,text='-->',command = lambda: self.focus_adjust('+1'))
+        self.focus_adjustR_button.pack(side='left', anchor="nw")
+        focus_adjust_button_frame.pack(side='top',fill='x', anchor="nw")
+        self.focus_adjust_stepsize_field = Pmw.EntryField(left_panel,
+                                                          labelpos='w',
+                                                          label_text="step size:",
+                                                          label_font = FIELD_LABEL_FONT,
+                                                          value = FINE_ADJUST_STEP_SIZE_DEFAULT,
+                                                          entry_width=4,
+                                                          )
+        self.focus_adjust_stepsize_field.pack(side='top', anchor="w", expand='no')
+        self.focus_adjust_position_field = Pmw.EntryField(left_panel,
+                                                          labelpos='w',
+                                                          label_text=" position:",
+                                                          label_font = FIELD_LABEL_FONT,
+                                                          entry_width=8,
+                                                          entry_state='readonly',
+                                                          )
+        self.focus_adjust_position_field.pack(side='top', anchor="w", expand='no')
+        
         #white field
         flatfield_pos_frame = tk.Frame(left_panel)
         tk.Label(flatfield_pos_frame, text="Flat Field Pos.:", font = "Helvetica 10 bold").pack(side='top', anchor="nw")        
@@ -224,6 +255,8 @@ class GUI:
         self.band_field.setvalue(band)
         if band in ['O2A','H2O']:
             self.filter_select_dialog.select_band(band)
+        focuser_pos = md['focuser_pos']
+        self.focus_adjust_position_field.setvalue(str(focuser_pos))
     
     def busy(self):
         self.disable_buttons()
@@ -235,12 +268,15 @@ class GUI:
         
     def disable_buttons(self):
         self.change_settings_button.configure(state="disabled")
-        self.run_continually_button.configure(state="disabled")
+        self.capture_continually_button.configure(state="disabled")
         #self.stop_button.configure(state="disabled")
-        self.run_once_button.configure(state="disabled")
+        self.capture_once_button.configure(state="disabled")
+        self.capture_on_adjust_button.configure(state="disabled")
         self.filter_select_button.configure(state="disabled")
         self.band_adjustL_button.configure(state="disabled")
         self.band_adjustR_button.configure(state="disabled")
+        self.focus_adjustL_button.configure(state="disabled")
+        self.focus_adjustR_button.configure(state="disabled")
         self.flatfield_posIN_button.configure(state="disabled")
         self.flatfield_posOUT_button.configure(state="disabled")
         self.export_spectrum_button.configure(state="disabled")
@@ -248,12 +284,14 @@ class GUI:
         
     def enable_buttons(self):
         self.change_settings_button.configure(state="normal")
-        self.run_continually_button.configure(state="normal")
+        self.capture_continually_button.configure(state="normal")
         #self.stop_button.configure(state="normal")
-        self.run_once_button.configure(state="normal")
+        self.capture_once_button.configure(state="normal")
         self.filter_select_button.configure(state="normal")
         self.band_adjustL_button.configure(state="normal")
         self.band_adjustR_button.configure(state="normal")
+        self.focus_adjustL_button.configure(state="normal")
+        self.focus_adjustR_button.configure(state="normal")
         self.flatfield_posIN_button.configure(state="normal")
         self.flatfield_posOUT_button.configure(state="normal")
         self.export_spectrum_button.configure(state="normal")
@@ -264,41 +302,77 @@ class GUI:
     def change_settings(self):
         self.app.print_comment("changing capture settings...")
         self.settings_dialog.activate()
-     
-    def run_continually(self):
-        #cache the GUI settings FIXME - is this necessary?
-        self._cache_settings()
-        #disable all the buttons, except the stop button
-        self.run_once_button.config(state='disabled')
-        self.run_continually_button.config(state='disabled')
+    
+    def capture_on_adjust(self):
+        if self._capture_mode == "on_adjust": #toggle it off
+            self.capture_on_adjust_button.config(bg='light gray', relief="raised")
+            self._capture_mode = None
+        else: #toggle it on
+            self.capture_on_adjust_button.config(bg='green', relief="sunken")
+            self.capture_continually_button.config(state='normal', bg='light gray', relief="raised")
+            self.stop_button.config(state='disabled')
+            self._capture_mode = "on_adjust"
         self.stop_button.config(state='normal')
-        self._is_running = True
-        self._run_continually_loop()
+        
+     
+    def capture_continually(self):
+        #disable all the buttons, except the stop button
+        self.capture_once_button.config(state='disabled')
+        self.capture_on_adjust_button.config(state='disabled', bg='light gray', relief="raised")
+        self.capture_continually_button.config(state='disabled', bg='green', relief="sunken")
+        self.stop_button.config(state='normal')
+        self._capture_mode = "continual"
+        capture_interval = int(1000*float(self.settings_dialog.form['capture_interval'])) #convert to milliseconds
+        #reschedule loop            
+        self.win.after(capture_interval,self._capture_continually_loop)
 
-    def _run_continually_loop(self):
-        if self._is_running:
-            self.run_once()
-            run_interval = int(1000*float(self.settings_dialog.form['run_interval'])) #convert to milliseconds
+    def _capture_continually_loop(self):
+        if self._capture_mode == "continual":
+            self.capture_once()
+            capture_interval = int(1000*float(self.settings_dialog.form['capture_interval'])) #convert to milliseconds
             #reschedule loop            
-            self.win.after(run_interval,self._run_continually_loop)
+            self.win.after(capture_interval,self._capture_continually_loop)
         else:
             #enable all the buttons, except the stop button
-            self.run_once_button.config(state='normal')
-            self.run_continually_button.config(state='normal')
+            self.capture_once_button.config(state='normal')
+            self.capture_on_adjust_button.config(state='normal', bg='light gray', relief = 'raised')
+            self.capture_continually_button.config(state='normal', bg='light gray', relief = 'raised')
             self.stop_button.config(state='disabled')
             #do not reschedule loop
             
 
-    def run_once(self):
+    def capture_once(self):
         exptime = int(self.settings_dialog.form['exposure_time'])
-        S, I = self.app.acquire_spectrum(exptime)   
-        self._update_spectral_plot(S)
-        self._update_image(I)
-        self.export_spectrum_button.config(state='normal') #data can now be exported
-        self.save_image_button.config(state='normal') #data can now be exported
+        self.app.print_comment("Acquiring spectrum.")
+        #acquire image and process into rudimentary spectrum
+        self.app.print_comment("Exposing for %d milliseconds..." % (exptime,), eol='')
+        self.app.acquire_image(exptime=exptime, blocking = False)
+        #self.busy()
+        #prevent multiple presses
+        self.capture_once_button.configure(state='disabled')
+        self.win.after(LOOP_DELAY,self._wait_on_capture_loop)
+        
+    def _wait_on_capture_loop(self):
+        image_capture = self.app.load_controller('image_capture')
+        if image_capture.thread_isAlive(): 
+            #reschedule loop
+            self.win.after(LOOP_DELAY,self._wait_on_capture_loop)
+        else:
+            self.update_fields()
+            #self.not_busy()
+            self.capture_once_button.configure(state='normal')
+            self.app.print_comment("completed")
+            self.app.compute_spectrum()
+            S = self.app.last_spectrum
+            I = self.app.last_image
+            self._update_spectral_plot(S)
+            self._update_image(I)
+            self.export_spectrum_button.config(state='normal') #data can now be exported
+            self.save_image_button.config(state='normal') #data can now be exported
+        
 
     def stop(self):
-        self._is_running = False
+        self._capture_mode = None
     
     def filter_select(self):
         self.app.print_comment("Selecting filter:")
@@ -408,6 +482,50 @@ class GUI:
             self.app.print_comment("finished")
             self.wait_msg_window.destroy()
             self.filter_select_dialog.deactivate()
+            
+    def band_adjust(self, step_direction):
+        raise NotImplementedError
+        self._wait_on_band_adjust()
+        
+    def _wait_on_band_adjust(self):
+        if self._capture_mode == "on_adjust":
+                self.capture_once()
+                
+        
+    def focus_adjust(self, step_direction):
+        #get the stepsize from the field
+        step_size = self.focus_adjust_stepsize_field.getvalue()
+        step_size = int(step_size)
+        if step_direction == "+1":
+            step = step_size
+        elif step_direction == "-1": 
+            step = -step_size
+        self.app.print_comment("adjust the focus by step: %s" % step)
+        self.focus_adjust_position_field.configure(entry_fg = "gray")
+        self.busy()
+        self.app.adjust_focus(step, blocking = False) #don't block
+        self._wait_focus_adjust_loop()
+        
+    def _wait_focus_adjust_loop(self):
+        #check the controller states
+        focus_adjuster  = self.app.load_controller('focus_adjuster')
+        if focus_adjuster.thread_isAlive():
+            #FIXME is this the way the update should be done?
+            while not focus_adjuster.event_queue.empty():
+                event, info = focus_adjuster.event_queue.get()
+                if event == 'FOCUS_ADJUSTER_STEP_POLL':
+                    pos = info['position']
+                    self.focus_adjust_position_field.setvalue(pos) 
+            #reschedule loop
+            self.win.after(LOOP_DELAY,self._wait_focus_adjust_loop)
+        else:
+            self.update_fields()
+            self.focus_adjust_position_field.configure(entry_fg = "black")
+            self.not_busy()
+            self.app.print_comment("finished")
+            if self._capture_mode == "on_adjust":
+                self.capture_once()
+        
         
 
     def set_flatfield(self, state):
@@ -466,16 +584,24 @@ class GUI:
             img = scipy.misc.toimage(I,mode='I') #convert  to 16-bit greyscale
             img.save(filename)
             
-    def _update_spectral_plot(self, S):
-        figure = self.spectral_figure_widget.get_figure()        
-        figure.clear()
-        Xs = [arange(len(S))]
-        Ys = [S]
-        self.spectral_plot_template.plot(Xs, Ys,
-                                         figure = figure
-                                        )
-        self.spectral_figure_widget.update()
     
+    def _update_spectral_plot(self, S):
+        figure        = self.spectral_figure_widget.get_figure()        
+        plot_template = self.spectral_plot_template
+        if not plot_template.has_been_plotted(): 
+            self.app.print_comment("Replotting the spectrum.")
+            figure.clear()
+            Xs = [arange(len(S))]
+            Ys = [S]
+            plot_template.plot(Xs, Ys,figure = figure)
+            self.spectral_figure_widget.update()
+        else:
+            self.app.print_comment("Updating spectrum data.")
+            #get the plot line from the figure FIXME is there an easier way?
+            line = figure.axes[0].lines[0]
+            line.set_ydata(S)
+            self.spectral_figure_widget.update()
+            
     def _update_image(self, I):
         #downsample to 8-bit for display
         I2 = (I/2**8).astype('uint8')
@@ -507,7 +633,7 @@ class GUI:
             self.app.print_comment("loading from settings file '%s'" % SETTINGS_FILEPATH)
             settings = shelve.open(SETTINGS_FILEPATH)
             self.settings_dialog.form['exposure_time'] = settings.get('exposure_time',DEFAULT_EXPOSURE_TIME)
-            self.settings_dialog.form['run_interval']  = settings.get('run_interval', DEFAULT_RUN_INTERVAL)
+            self.settings_dialog.form['capture_interval']  = settings.get('capture_interval', DEFAULT_CAPTURE_INTERVAL)
             settings.close() 
         else:
             self.app.print_comment("failed to find settings file '%s'" % SETTINGS_FILEPATH)
@@ -516,7 +642,7 @@ class GUI:
         self.app.print_comment("caching to settings file '%s'" % SETTINGS_FILEPATH)
         settings = shelve.open(SETTINGS_FILEPATH)
         settings['exposure_time'] = self.settings_dialog.form['exposure_time']
-        settings['run_interval']  = self.settings_dialog.form['run_interval']
+        settings['capture_interval']  = self.settings_dialog.form['capture_interval']
         settings.close()
         
             

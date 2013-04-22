@@ -112,7 +112,7 @@ if __name__ == "__main__":
           #non-code files
           package_data     =   {'': ['*.yaml','*.yml', '*.csv']},
 
-          install_requires = INSTALL_REQUIRES,
+          #install_requires = INSTALL_REQUIRES,
           entry_points     = ENTRY_POINTS,  
           **PACKAGE_METADATA
          )

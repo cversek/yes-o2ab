@@ -32,9 +32,9 @@ class SettingsDialog(Dialog):
                        validate = self.validator 
         
                       )
-        form.new_field('run_interval',
+        form.new_field('capture_interval',
                        labelpos='w',
-                       label_text="Run Interval (s):",
+                       label_text="Capture Interval (s):",
                        entry_width=6,
                        value = RUN_INTERVAL_DEFAULT,
                        validate = self.validator 

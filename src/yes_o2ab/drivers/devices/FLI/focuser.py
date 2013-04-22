@@ -32,9 +32,15 @@ class Interface(FLIDevice):
         self._init_driver()
         self._driver.home_focuser()
 
-    def step(self, steps):
+    def step(self, steps, blocking=True):
         self.initialize()
-        self._driver.step_motor(steps)
+        self._driver.step_motor(steps, blocking=True)
+        
+    def get_steps_remaining(self):
+        return self._driver.get_steps_remaining()
+        
+    def get_temperature(self):
+        return self._driver.read_internal_temperature()
         
     #--------------------------------------------------------------------------
       

@@ -17,6 +17,10 @@ class Interface(Controller):
     def __init__(self,**kwargs):
         Controller.__init__(self, **kwargs)
         
+    def initialize(self):
+        self.thread_init()
+        self.initialize_devices()
+        
     def acquire_sample(self):
         info = OrderedDict()
         devices = self.devices.copy() #do not accidently edit in place!

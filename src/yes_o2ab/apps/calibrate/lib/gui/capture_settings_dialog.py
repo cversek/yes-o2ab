@@ -10,7 +10,7 @@ TITLE = "Change Settings"
 EXPOSURE_TIME_DEFAULT = 10
 RUN_INTERVAL_DEFAULT  = 10
 ###############################################################################
-class SettingsDialog(Dialog):
+class CaptureSettingsDialog(Dialog):
     def __init__(self,
                  parent              = None,
                  ):

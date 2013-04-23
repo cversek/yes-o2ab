@@ -1,6 +1,5 @@
 """
-Controller to switch the O2ab spectrometer between A (oxygen A) and B (water )
-and to finely adjust the diffraction grating position
+Controller to switch the flatfield 
 """
 ###############################################################################
 import sys, time, copy
@@ -12,72 +11,96 @@ except ImportError:
     from yes_o2ab.support.odict import OrderedDict
 ###############################################################################
 DEFAULT_CONFIGURATION = OrderedDict([
-    ("band",None),
+    ("state",None),
+    ("out_angle", 91), #degrees
 ])
-WINDINGS_CHANNEL = 1
-WINDINGS_STATE_ON = 0
+WINDINGS_CHANNEL = 2
+WINDINGS_STATE_ON  = 0
 WINDINGS_STATE_OFF = 1
+
+HOME_STATE = 'in'
 ###############################################################################
 class Interface(Controller):
     def __init__(self,**kwargs):
-        self.band = None
-        #kwargs.get(
+        self.state = None
         Controller.__init__(self, **kwargs)
         
     def initialize(self, **kwargs):
         try:
             self.thread_init(**kwargs) #gets the threads working
-            band_motor = self.devices['band_motor']
+            flip_motor = self.devices['flip_motor']
             #send initialize event
             info = OrderedDict()
             info['timestamp'] = time.time()
-            self._send_event("BAND_SWITCHER_INITIALIZE", info)
-            with band_motor.motor_controller._mutex:
+            self._send_event("FLATFIELD_SWITCHER_INITIALIZE", info)
+            with flip_motor.motor_controller._mutex:
                 self.initialize_devices()
-            #ensure windings are off
-            self.set_windings('off')
-        except RuntimeError, exc: #can't get mutex locks (thread or process level)
+            self.goto_home()
+            self.set_state('out')
+        except Exception as exc: #can't get mutex locks (thread or process level)
             #send initialize end
             info = OrderedDict()
             info['timestamp'] = time.time()
             info['exception'] = exc
-            self._send_event("BAND_SWITCHER_INITIALIZE_FAILED", info)
+            self._send_event("FLATFIELD_SWITCHER_INITIALIZE_FAILED", info)
+        finally:
+            #ensure windings are off
+            self.set_windings('off')
         
     def set_windings(self, state = 'on'):
         "set current to windings, 'state' must be 'on' or 'off'"
-        band_motor = self.devices['band_motor']
-        with band_motor.motor_controller._mutex:
+        flip_motor = self.devices['flip_motor']
+        with flip_motor.motor_controller._mutex:
             if state == 'on':
-                band_motor.motor_controller.write_digital_output(WINDINGS_CHANNEL,WINDINGS_STATE_ON)
+                flip_motor.motor_controller.write_digital_output(WINDINGS_CHANNEL,WINDINGS_STATE_ON)
             elif state == 'off':
-                band_motor.motor_controller.write_digital_output(WINDINGS_CHANNEL,WINDINGS_STATE_OFF)
+                flip_motor.motor_controller.write_digital_output(WINDINGS_CHANNEL,WINDINGS_STATE_OFF)
             else:
                 raise ValueError, "'state' must be 'on' or 'off'"
-        
-        
-    def select_band(self, band):
-        """switches betwen the 'H2O' and 'O2A' bands, windings are
-           always set 'off' upon completion (even during an error state)
-        """
+    
+    def goto_home(self):
         try:
-            if not band in ['O2A','H2O']:
-                raise ValueError, "'band' must be 'H2O' or 'O2A'"
             #get the device
-            band_motor = self.devices['band_motor']
+            flip_motor = self.devices['flip_motor']
             #ensure windings are on
             self.set_windings('on')
-            with band_motor.motor_controller._mutex:
-                band_motor.configure_limit_sensors(sensor_mode=2) # 2 sensor mode
-                if band == 'O2A':   #system is driven CCW to Limit
-                    band_motor.seek_home('CCW')
-                elif band == 'H2O':     #system is driven CW to Limit
-                    band_motor.seek_home('CW')
-                #in no band while moving
-                self.band = None
+            with flip_motor.motor_controller._mutex:
+                flip_motor.configure_limit_sensors(sensor_mode=2) # 2 sensor mode
+                flip_motor.seek_home('CCW')
+                #in no definite state while moving
+                self.state = None
                 #wait until moving stops
-                band_motor.wait_on_move()
+                flip_motor.wait_on_move()
                 #moving completed, take on band state
-                self.band = band
+                self.state = HOME_STATE
+        finally: 
+            #ensure that windings are always in left off state, even during exception
+            self.set_windings('off')
+                    
+    def set_state(self, state = 'in'):
+        """switches betwen the flatfield between states 'in' and 'out' bands, 
+           windings are always set 'off' upon completion (even during an error state)
+        """
+        try:
+            if not state in ['in','out']:
+                raise ValueError, "'state' must be 'in' or 'out'"
+            #get the device
+            flip_motor = self.devices['flip_motor']
+            out_angle  = int(self.configuration['out_angle'])
+            #ensure windings are on
+            self.set_windings('on')
+            with flip_motor.motor_controller._mutex:
+                flip_motor.configure_limit_sensors(sensor_mode=2) # 2 sensor mode
+                if state == 'in':   #system is driven CCW to Limit
+                    flip_motor.seek_home('CCW')
+                elif state == 'out': #system is driven to out position
+                    flip_motor.goto_angle(out_angle)
+                #in no definite state while moving
+                self.state = None
+                #wait until moving stops
+                flip_motor.wait_on_move()
+                #moving completed, take on band state
+                self.state = state
         finally: 
             #ensure that windings are always in left off state, even during exception
             self.set_windings('off')
@@ -101,24 +124,23 @@ class Interface(Controller):
             
     def main(self):
         try:
-            band = self.configuration['band']
+            state = self.configuration['state']
             #send start event
             info = OrderedDict()
-            info['timestamp'] = time.time()
-            info['from_band'] = self.band
-            info['to_band']   = band
-            self._send_event("BAND_SWITCHER_SELECT_BAND_STARTED", info)
-            self.select_band(band)
+            info['from_state'] = self.state
+            info['to_state'] = state
+            self._send_event("FLATFIELD_SWITCHER_SELECT_BAND_STARTED", info)
+            self.set_state(state)
             #send completed event
             info = OrderedDict()
             info['timestamp'] = time.time()
-            info['band']      = self.band
-            self._send_event("BAND_SWITCHER_SELECT_BAND_COMPLETED", info)
+            info['state']      = self.state
+            self._send_event("FLATFIELD_SWITCHER_SELECT_BAND_COMPLETED", info)
         except Exception as exc:
             info = OrderedDict()
             info['timestamp'] = time.time()
             info['exception'] = exc
-            self._send_event("BAND_SWITCHER_SELECT_BAND_FAILED", info)
+            self._send_event("FLATFIELD_SWITCHER_SELECT_BAND_FAILED", info)
         finally:
             #IMPORTANT!
             self.reset() #reset the controller to be used again

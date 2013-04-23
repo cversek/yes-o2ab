@@ -2,7 +2,7 @@
 Controller to adjust the FLI focuser
 """
 ###############################################################################
-import time, copy
+import sys, time, copy
 from automat.core.hwcontrol.controllers.controller import Controller, AbortInterrupt, NullController
 OrderedDict = None
 try:
@@ -16,7 +16,7 @@ DEFAULT_CONFIGURATION = OrderedDict([
 ])
 
 POLLING_DELAY = 0.1 #seconds
-BABYSTEPSIZE  = 10
+BABYSTEPSIZE  = 100
 ###############################################################################
 class Interface(Controller):
     def __init__(self,**kwargs):
@@ -38,7 +38,7 @@ class Interface(Controller):
             info = OrderedDict()
             info['timestamp'] = time.time()
             info['exception'] = exc
-            self._send_event("FOCUS_ADJUSTER_INITIALIZE_FAIL", info)
+            self._send_event("FOCUS_ADJUSTER_INITIALIZE_FAILED", info)
         #success, send initialize end
         info = OrderedDict()
         info['timestamp'] = time.time()
@@ -57,7 +57,7 @@ class Interface(Controller):
             info = OrderedDict()
             info['timestamp'] = time.time()
             info['exception'] = exc
-            self._send_event("FOCUS_ADJUSTER_QUERY_POSITION_FAIL", info)
+            self._send_event("FOCUS_ADJUSTER_QUERY_POSITION_FAILED", info)
         #success
         info = OrderedDict()
         info['timestamp'] = time.time()
@@ -66,20 +66,19 @@ class Interface(Controller):
         return self.position
         
     def main(self):
-        focuser   = self.devices['focuser']
-        step_size = int(self.configuration['step_size'])
-        step_dir  = self.configuration['step_direction'] #"+1" or "-1" as string
-        step_size = int(step_size)
-        step_dir  = int(step_dir)
-        step = step_size*step_dir
-        pos_start = self.query_position()
-        #send initialize start event
-        info = OrderedDict()
-        info['timestamp'] = time.time()
-        info['step']      = step
-        info['start_position']  = pos_start
-        self._send_event("FOCUS_ADJUSTER_STEP_START", info)
         try:
+            focuser   = self.devices['focuser']
+            step_size = int(self.configuration['step_size'])
+            step_dir  = int(self.configuration['step_direction']) #"+1" or "-1" as string
+            step = step_size*step_dir
+            pos_start = self.query_position()
+            #send initialize start event
+            info = OrderedDict()
+            info['timestamp'] = time.time()
+            info['step']      = step
+            info['start_position']  = pos_start
+            self._send_event("FOCUS_ADJUSTER_STEP_START", info)
+        
             with focuser._mutex:   
                 #focuser.step(step, blocking = False) #FIXME asynchron stepper mode doesn't work!
                 #break a large step into small ones
@@ -94,23 +93,22 @@ class Interface(Controller):
                     self._send_event("FOCUS_ADJUSTER_STEP_POLL", info)
                     #take a babystep
                     focuser.step(babystep, blocking = True)
-        except RuntimeError, exc: #can't get mutex locks (thread or process level)
+                #success
+                pos_end = self.query_position()
+                info = OrderedDict()
+                info['timestamp'] = time.time()
+                info['step']      = step
+                info['start_position']  = pos_start
+                info['pos_end']   = pos_end
+                self._send_event("FOCUS_ADJUSTER_STEP_END", info)
+        except Exception as exc:
             info = OrderedDict()
             info['timestamp'] = time.time()
             info['exception'] = exc
-            self._send_event("FOCUS_ADJUSTER_STEP_FAIL", info)
-        #DEBUG
-        #self.sleep(10) 
-        #success
-        pos_end = self.query_position()
-        info = OrderedDict()
-        info['timestamp'] = time.time()
-        info['step']      = step
-        info['start_position']  = pos_start
-        info['pos_end']   = pos_end
-        self._send_event("FOCUS_ADJUSTER_STEP_END", info)
-        #finish up
-        self.reset() #reset the controller to be used again
+            self._send_event("FOCUS_ADJUSTER_STEP_FAILED", info)
+        finally:
+            #finish up
+            self.reset() #reset the controller to be used again
         
         
 def get_interface(**kwargs):

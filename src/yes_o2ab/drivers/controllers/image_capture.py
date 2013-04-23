@@ -1,8 +1,23 @@
 """
 Controller to capture images from FLI camera
+
+--------------------------------------------------------------------------------
+Configuration:
+
+frametype - 'normal'     - open shutter exposure
+            'dark'       - exposure with shutter closed
+            'bias'       - zero second exposure (exptime ignnored)
+            'flat_field' - white screen in front of camera
+            'opaque'     - filter wheel locking light input
+            
+exposure_time     - length of exposure in milliseconds (default 100)
+
+rbi_num_flushes   - number of Residual Bulk Image (flood then flush) frames
+
+rbi_exposure_time - length of the RBI exposure in milliseconds (default 10)
 """
 ###############################################################################
-import time, copy
+import sys, time, copy
 from automat.core.hwcontrol.controllers.controller import Controller, AbortInterrupt, NullController
 OrderedDict = None
 try:
@@ -11,16 +26,16 @@ except ImportError:
     from yes_o2ab.support.odict import OrderedDict
 ###############################################################################
 DEFAULT_CONFIGURATION = OrderedDict([
-    #('bitdepth','16bit'),
+    ('bitdepth','16bit'),
     ('frametype','normal'),
     ('hbin',1),
     ('vbin',1),
     ('rbi_hbin',1),
     ('rbi_vbin',1),
-    ('exposure_time',100),
-    ('num_flushes',1),
-    ('rbi_exposure_time',100),
-    ('rbi_num_flushes',1),
+    ('exposure_time',500),
+    #('num_flushes',1),
+    ('rbi_exposure_time',500),
+    ('rbi_num_flushes',0),
 ])
 
 ###############################################################################
@@ -28,18 +43,23 @@ class Interface(Controller):
     def __init__(self,**kwargs):
         Controller.__init__(self, **kwargs)
         self.last_image = None
+        self.saved_filter_position = None
+        self.opaque_state = False
 
     def initialize(self, **kwargs):
         self.thread_init(**kwargs) #gets the threads working
         camera = self.devices['camera']
         try:
+            camera_info = None
             with camera._mutex: #locks the resource
                 self.initialize_devices()
-                #send initialize start event
-                info = OrderedDict()
-                info['timestamp'] = time.time()
-                info['camera_info'] = camera.get_info() #add a bunch of metadata
-                self._send_event("IMAGE_CAPTURE_INITIALIZED", info)  
+                camera_info = camera.get_info() #add a bunch of metadata
+            self.set_flatfield('out')
+            #send initialize start event
+            info = OrderedDict()
+            info['timestamp'] = time.time()
+            info['camera_info'] = camera_info
+            self._send_event("IMAGE_CAPTURE_INITIALIZED", info)  
         except RuntimeError, exc: #can't get mutex locks (thread or process level)
             #send initialize end
             info = OrderedDict()
@@ -55,33 +75,82 @@ class Interface(Controller):
             self.metadata['CC_power'] = camera.get_CC_power()
         return self.metadata
         
+    def set_flatfield(self, state):
+        flatfield_switcher = self.controllers['flatfield_switcher']
+        #only switch if necessary
+        if flatfield_switcher.state != state:
+            #chain events
+            flatfield_switcher.thread_init(event_queue = self.event_queue)
+            flatfield_switcher.configuration['state'] = state
+            flatfield_switcher.run() #this dhould block
+            
+    def set_opaque_filter(self, state = True):
+        filter_switcher = self.controllers['filter_switcher']
+        if state == True:
+            if self.opaque_state == False:
+                self.saved_filter_position = filter_switcher.query_position()
+                filter_switcher.set_filter_by_name('Opaque')
+            self.opaque_state = True
+        elif state == False:
+            if self.opaque_state == True:
+                old_pos = self.saved_filter_position
+                filter_switcher.set_filter_by_position(old_pos)
+            self.opaque_state = False
+
     def shutdown(self):
         pass
         
     def main(self):
-        camera  = self.devices['camera']
-        frametype = self.configuration['frametype']
-        hbin    = int(self.configuration['hbin'])
-        vbin    = int(self.configuration['vbin'])
-        exptime = int(self.configuration['exposure_time'])
-        rbi_hbin = int(self.configuration['rbi_hbin'])
-        rbi_vbin = int(self.configuration['rbi_vbin'])
-        rbi_exptime = int(self.configuration['rbi_exposure_time'])
-        rbi_nflushes = int(self.configuration['rbi_num_flushes'])
-        info = OrderedDict()
-        info['timestamp'] = time.time()
-        info['frametype'] = frametype
-        info['hbin'] = hbin
-        info['vbin'] = vbin
-        info['exposure_time'] = exptime
-        info['rbi_hbin'] = rbi_hbin
-        info['rbi_vbin'] = rbi_vbin
-        info['rbi_exposure_time'] = rbi_exptime
-        info['rbi_num_flushes'] = rbi_nflushes
-        self._send_event("IMAGE_CAPTURE_STARTED", info)
         try:
+            camera              = self.devices['camera']
+            frametype = self.configuration['frametype']
+            #hbin    = int(self.configuration['hbin'])
+            #vbin    = int(self.configuration['vbin'])
+            exptime = int(self.configuration['exposure_time'])
+            #rbi_hbin = int(self.configuration['rbi_hbin'])
+            #rbi_vbin = int(self.configuration['rbi_vbin'])
+            rbi_exptime = int(self.configuration['rbi_exposure_time'])
+            rbi_nflushes = int(self.configuration['rbi_num_flushes'])
+            info = OrderedDict()
+            info['timestamp'] = time.time()
+            info['frametype'] = frametype
+            #info['hbin'] = hbin
+            #info['vbin'] = vbin
+            info['exposure_time'] = exptime
+            #info['rbi_hbin'] = rbi_hbin
+            #info['rbi_vbin'] = rbi_vbin
+            info['rbi_exposure_time'] = rbi_exptime
+            info['rbi_num_flushes']   = rbi_nflushes
+            self._send_event("IMAGE_CAPTURE_STARTED", info)
+            #first configure the frametype
+            if   frametype == "normal":
+                self.set_flatfield('out')
+                self.set_opaque_filter(False)
+            elif frametype == "dark":
+                self.set_opaque_filter(False)
+            elif frametype == "bias":
+                exptime = 0 #bias is a zero time readout
+                self.set_opaque_filter(False)
+            elif frametype == "flat_field":
+                #require the flipper to be moved up
+                self.set_flatfield('in')
+                self.set_opaque_filter(False)
+            elif frametype == "opaque":
+                self.set_flatfield('out')
+                self.set_opaque_filter(True)
+            else:
+                raise ValueError("frametype '%s' is not valid" % frametype)
+            #next do any RBI flushes
             with camera._mutex: #locks the resource
-                #camera.
+                
+                for i in range(rbi_nflushes):
+                    info = OrderedDict()
+                    info['timestamp'] = time.time()
+                    info['index']     = i
+                    info['exposure_time'] = rbi_exptime
+                    self._send_event("IMAGE_CAPTURE_RBI_FLUSH", info)
+                    camera.take_photo(rbi_exptime, frametype = 'rbi_flush')
+                #now aquire the image
                 I = camera.take_photo(exptime,
                                       frametype = frametype,
                                      )
@@ -89,16 +158,15 @@ class Interface(Controller):
                 #send initialize start event
                 info = OrderedDict()
                 info['timestamp'] = time.time()
-                info['camera_info'] = camera.get_info() #add a bunch of metadata
                 self._send_event("IMAGE_CAPTURE_COMPLETED", info)  
-        except RuntimeError, exc: #can't get mutex locks (thread or process level)
-            #send initialize end
+        except Exception as exc:
             info = OrderedDict()
             info['timestamp'] = time.time()
             info['exception'] = exc
             self._send_event("IMAGE_CAPTURE_FAILED", info)
-        #IMPORTANT!
-        self.reset() #reset the controller to be used again
+        finally:
+            #IMPORTANT!
+            self.reset() #reset the controller to be used again
         
        
 def get_interface(**kwargs):

@@ -18,6 +18,7 @@ class Interface(FLIDevice):
     def __init__(self, serial_number):
         FLIDevice.__init__(self, serial_number=serial_number)
 
+#    FIXME does this FLI command even do anything?
     def set_image_area(self, ul_x, ul_y, lr_x, lr_y):
         """ Set the image area:
                 ul_x - upper-left horizontal coordinate
@@ -37,7 +38,10 @@ class Interface(FLIDevice):
                   ):
         """ Acquire an image with parameters:
                 exptime   - length of exposure in milliseconds
-                frametype - 'normal' or 'dark', default = 'normal'
+                frametype - 'normal'     - open shutter exposure
+                            'dark'       - exposure with shutter closed
+                            'rbi_flush'  - flood CCD with internal light
+                            default = 'normal'
                 bitdepth  - '8bit' or '16bit', default = '16bit'
         """
         self.initialize()

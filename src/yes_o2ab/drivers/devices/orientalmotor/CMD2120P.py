@@ -110,10 +110,12 @@ class Interface(Model):
 
     def goto_angle(self,
                    angle,
-                   angular_start_speed     = None, 
+                   angular_start_speed     = None,
                    angular_operating_speed = None,
+                   blocking = True,
                   ):
         "move to an absolute angle (degrees), at angular speed (degrees/second)"
+        #print "!!! DEBUG goto_angle, angle=",angle
         if angular_start_speed is None:
             angular_start_speed = self.default_speed*self.degrees_per_step
         if angular_operating_speed is None:
@@ -128,13 +130,16 @@ class Interface(Model):
                                             start_speed     = start_speed,
                                             operating_speed = operating_speed,
                                            )
-        #send back the actual angle for the closest position        
+        if blocking:
+            self.wait_on_move()
+        #send back the actual angle for the closest position
         return pos*self.degrees_per_step
     
     def rotate(self,
                angle,
                angular_start_speed     = None, 
                angular_operating_speed = None,
+               blocking = True,
               ):
         "move by an angle (degrees) relative to current position, at angular speed (degrees/second)"
         if angular_start_speed is None:
@@ -144,22 +149,27 @@ class Interface(Model):
         #compute steps and step speed from angle
         steps = int(round(angle/self.degrees_per_step))
         start_speed     = int(round(angular_start_speed/self.degrees_per_step))
-        operating_speed = int(round(angular_operating_speed/self.degrees_per_step))        
+        operating_speed = int(round(angular_operating_speed/self.degrees_per_step))
         self.motor_controller.rotate(
                                      axis  = self.axis,
                                      steps = steps,
                                      start_speed     = start_speed,
                                      operating_speed = operating_speed,
                                     )
-        #send back the actual angle that was rotated        
+        if blocking:
+            self.wait_on_move()
+        #send back the actual angle that was rotated
         return steps*self.degrees_per_step
         
-    def seek_home(self, direction):
+    def seek_home(self, direction, blocking = True):
+        #print "!!! DEBUG seek_home, direction =", direction
         if self._limit_sensor_config is None:
             raise RuntimeError, "user must first call 'configure_limit_sensors'"
         self._limit_sensor_config['axis'] = self.axis
         self._limit_sensor_config['direction'] = direction
-        self.motor_controller.seek_home(**self._limit_sensor_config)         
+        self.motor_controller.seek_home(**self._limit_sensor_config)
+        if blocking:
+            self.wait_on_move()
     
     def wait_on_move(self):
         self.motor_controller.wait_on_move()

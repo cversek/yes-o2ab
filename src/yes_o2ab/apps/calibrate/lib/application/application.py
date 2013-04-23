@@ -28,10 +28,12 @@ DEFAULT_EXPTIME = 10 # milliseconds
 
 USED_CONTROLLERS = [
                     'image_capture',
-                    #'condition_monitor',
+                    'condition_monitor',
                     'band_switcher',
                     'filter_switcher', 
+                    'band_adjuster',  #FIXME can't be initialized with known state!
                     'focus_adjuster',
+                    'flatfield_switcher',
                    ]
 
 ###############################################################################
@@ -108,7 +110,8 @@ class Application:
     def query_metadata(self):
         band_switcher   = self.load_controller('band_switcher')
         filter_switcher = self.load_controller('filter_switcher')
-        focus_adjuster = self.load_controller('focus_adjuster')
+        band_adjuster   = self.load_controller('band_adjuster')
+        focus_adjuster  = self.load_controller('focus_adjuster')
         image_capture   = self.load_controller('image_capture')
         condition_monitor = self.load_controller('condition_monitor')
         
@@ -119,7 +122,8 @@ class Application:
         B = filt_pos // 5
         A = filt_pos %  5
         
-        focuser_pos = focus_adjuster.query_position()
+        focuser_pos     = focus_adjuster.query_position()
+        band_adjust_pos = band_adjuster.query_position()
         
         self.metadata['timestamp']   = time.time()
         self.metadata['band']        = band
@@ -128,6 +132,7 @@ class Application:
         self.metadata['filt_A_num']  = A
         self.metadata['filt_B_type'] = self.filter_B_types[B][1]
         self.metadata['filt_A_type'] = self.filter_A_types[A][1]
+        self.metadata['band_adjust_pos'] = band_adjust_pos
         self.metadata['focuser_pos'] = focuser_pos
         #gets a lot of condition readings (temperature, pressure, etc.)
         sample = condition_monitor.acquire_sample()
@@ -272,6 +277,18 @@ class Application:
             filter_switcher.run()
         else:
             filter_switcher.start() #run as seperate thread
+    
+    def adjust_band(self, step, blocking = True):
+        step_size = abs(step)
+        step_direction = "+1"
+        if step < 0:
+            step_direction = "-1"
+        band_adjuster  = self.load_controller('band_adjuster')
+        band_adjuster.set_configuration(step_size=step_size,step_direction=step_direction)
+        if blocking:
+            band_adjuster.run()
+        else:
+            band_adjuster.start() #run as seperate thread       
             
     def adjust_focus(self, step, blocking = True):
         step_size = abs(step)

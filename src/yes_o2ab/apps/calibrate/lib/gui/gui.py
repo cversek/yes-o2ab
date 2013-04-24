@@ -331,14 +331,18 @@ class GUI:
         self.stop_button.config(state='normal')
         self._capture_mode = "continual"
         capture_interval = int(1000*float(self.capture_settings_dialog.form['capture_interval'])) #convert to milliseconds
-        #reschedule loop            
+        #schedule loop
         self.win.after(capture_interval,self._capture_continually_loop)
 
     def _capture_continually_loop(self):
-        if self._capture_mode == "continual":
+        image_capture = self.app.load_controller('image_capture')
+        if image_capture.thread_isAlive():  #wait for the capture to finish, important!
+            #reschedule loop
+            self.win.after(LOOP_DELAY,self._capture_continually_loop)
+        elif self._capture_mode == "continual":
             self.capture_once()
             capture_interval = int(1000*float(self.capture_settings_dialog.form['capture_interval'])) #convert to milliseconds
-            #reschedule loop            
+            #reschedule loop
             self.win.after(capture_interval,self._capture_continually_loop)
         else:
             #enable all the buttons, except the stop button
@@ -347,7 +351,6 @@ class GUI:
             self.capture_continually_button.config(state='normal', bg='light gray', relief = 'raised')
             self.stop_button.config(state='disabled')
             #do not reschedule loop
-            
 
     def capture_once(self):
         exptime = int(self.capture_settings_dialog.form['exposure_time'])
@@ -366,7 +369,6 @@ class GUI:
             #reschedule loop
             self.win.after(LOOP_DELAY,self._wait_on_capture_loop)
         else:
-            
             #self.not_busy()
             self.capture_once_button.configure(state='normal')
             self.app.print_comment("completed")

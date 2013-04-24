@@ -255,34 +255,13 @@ class GUI:
     def launch(self):
         #run the GUI handling loop
         IgnoreKeyboardInterrupt()
-        self.update_fields()
+        #get metadata from devices to update the fields
+        md = self.app.query_metadata()
+        self._update_fields(md)
+        #reveal the main window
         self.win.deiconify()
         self.win.mainloop()
         NoticeKeyboardInterrupt()   
-        
-    def update_fields(self):
-        md = self.app.query_metadata()
-        self.filter_position_field.setvalue(str(md['filt_pos']))
-        B = md['filt_B_num']
-        A = md['filt_A_num']
-        B_type = md['filt_B_type']
-        A_type = md['filt_A_type']
-        B_label = "%d, \"%s\"" % (B,B_type)
-        A_label = "%d, \"%s\"" % (A,A_type)
-        self.filter_B_field.setvalue(B_label)
-        self.filter_A_field.setvalue(A_label)
-        self.filter_select_dialog.varB.set(B)
-        self.filter_select_dialog.varA.set(A)
-        band = md['band']
-        self.band_field.setvalue(band)
-        if band in ['O2A','H2O']:
-            self.filter_select_dialog.select_band(band)
-        band_adjust_pos = md['band_adjust_pos']
-        if band_adjust_pos is None:
-            band_adjust_pos = "(unknown)"
-        self.band_adjust_position_field.setvalue(str(band_adjust_pos))
-        focuser_pos = md['focuser_pos']
-        self.focus_adjust_position_field.setvalue(str(focuser_pos))
     
     def busy(self):
         self.disable_buttons()
@@ -387,15 +366,17 @@ class GUI:
             #reschedule loop
             self.win.after(LOOP_DELAY,self._wait_on_capture_loop)
         else:
-            self.update_fields()
+            
             #self.not_busy()
             self.capture_once_button.configure(state='normal')
             self.app.print_comment("completed")
             self.app.compute_spectrum()
+            md = self.app.last_capture_metadata.copy()
             S = self.app.last_spectrum
             I = self.app.last_image
             self._update_spectral_plot(S)
             self._update_image(I)
+            self._update_fields(md)
             self.replot_spectrum_button.config(state='normal') #data can now be replotted
             self.export_spectrum_button.config(state='normal') #data can now be exported
             self.save_image_button.config(state='normal') #data can now be exported
@@ -406,7 +387,7 @@ class GUI:
     
     def filter_select(self):
         self.app.print_comment("Selecting filter:")
-        self.update_fields()
+        #self._update_fields() #FIXME does this need to be done?
         choice = self.filter_select_dialog.activate()
         if choice == 'OK':
             self._set_band_and_filter_pos()
@@ -509,7 +490,8 @@ class GUI:
             #reschedule loop
             self.win.after(LOOP_DELAY,self._wait_on_band_and_filter_change_loop)
         else:
-            self.update_fields()
+            md = self.app.query_metadata()
+            self._update_fields(md)
             self.not_busy()
             self.app.print_comment("finished")
             self.wait_msg_window.destroy()
@@ -559,7 +541,7 @@ class GUI:
             #reschedule loop
             self.win.after(LOOP_DELAY,self._wait_on_band_adjust_loop)
         else:
-            self.update_fields()
+            #self.update_fields() #FIXME does this need to be done?
             self.band_adjust_position_field.configure(entry_fg = "black")
             self.not_busy()
             self.app.print_comment("finished")
@@ -601,7 +583,8 @@ class GUI:
             #reschedule loop
             self.win.after(LOOP_DELAY,self._wait_focus_adjust_loop)
         else:
-            self.update_fields()
+            md = self.app.query_metadata()
+            self._update_fields(md)
             self.focus_adjust_position_field.configure(entry_fg = "black")
             self.not_busy()
             self.app.print_comment("finished")
@@ -699,6 +682,29 @@ class GUI:
         self.last_image_display = disp_img
         self.last_photo = photo = ImageTk.PhotoImage(disp_img) #keep the reference
         self.photo_label_widget.config(image = photo)     #update the widget
+        
+    def _update_fields(self, md):
+        self.filter_position_field.setvalue(str(md['filt_pos']))
+        B = md['filt_B_num']
+        A = md['filt_A_num']
+        B_type = md['filt_B_type']
+        A_type = md['filt_A_type']
+        B_label = "%d, \"%s\"" % (B,B_type)
+        A_label = "%d, \"%s\"" % (A,A_type)
+        self.filter_B_field.setvalue(B_label)
+        self.filter_A_field.setvalue(A_label)
+        self.filter_select_dialog.varB.set(B)
+        self.filter_select_dialog.varA.set(A)
+        band = md['band']
+        self.band_field.setvalue(band)
+        if band in ['O2A','H2O']:
+            self.filter_select_dialog.select_band(band)
+        band_adjust_pos = md['band_adjust_pos']
+        if band_adjust_pos is None:
+            band_adjust_pos = "(unknown)"
+        self.band_adjust_position_field.setvalue(str(band_adjust_pos))
+        focuser_pos = md['focuser_pos']
+        self.focus_adjust_position_field.setvalue(str(focuser_pos))
  
 #    def wait_on_experiment(self):
 #        if self.app.check_experiment_completed():

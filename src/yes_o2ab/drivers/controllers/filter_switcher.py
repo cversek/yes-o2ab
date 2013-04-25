@@ -55,36 +55,33 @@ class Interface(Controller):
         A = backmap_A.get(name,open_A)
         B = backmap_B.get(name,open_B)
         pos = 5*B + A
-        with filter_wheel._mutex:
-            filter_wheel.set_position(pos)
-            self.position = filter_wheel.get_position()
+        self.set_filter_by_position(position=pos)
             
     def set_filter_by_position(self, position):
+        #send start event
+        info = OrderedDict()
+        info['timestamp'] = time.time()
+        info['from_position'] = self.position
+        info['to_position']   = pos
+        self._send_event("FILTER_SWITCHER_STARTED", info)
         filter_wheel = self.devices['filter_wheel']
         with filter_wheel._mutex:
             self.position = None
             filter_wheel.set_position(position) #should block
             self.position = position
+        #send completed event
+        info = OrderedDict()
+        info['timestamp'] = time.time()
+        info['position']  = self.position
+        self._send_event("FILTER_SWITCHER_COMPLETED", info)    
 
     def shutdown(self):
         pass
         
     def main(self):
         try:
-            
-            pos          = self.configuration['position']
-            #send start event
-            info = OrderedDict()
-            info['timestamp'] = time.time()
-            info['from_position'] = self.position
-            info['to_position']   = pos
-            self._send_event("FILTER_SWITCHER_SELECT_BAND_STARTED", info)
+            pos = self.configuration['position']
             self.set_filter_by_position(pos)
-            #send completed event
-            info = OrderedDict()
-            info['timestamp'] = time.time()
-            info['position']  = self.position
-            self._send_event("FILTER_SWITCHER_COMPLETED", info)
         except Exception as exc:
             info = OrderedDict()
             info['timestamp'] = time.time()

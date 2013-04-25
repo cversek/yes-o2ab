@@ -87,6 +87,11 @@ class Interface(Controller):
             #get the device
             flip_motor = self.devices['flip_motor']
             out_angle  = int(self.configuration['out_angle'])
+            #send start event
+            info = OrderedDict()
+            info['from_state'] = self.state
+            info['to_state'] = state
+            self._send_event("FLATFIELD_SWITCHER_STARTED", info)
             #ensure windings are on
             self.set_windings('on')
             with flip_motor.motor_controller._mutex:
@@ -101,46 +106,24 @@ class Interface(Controller):
                 flip_motor.wait_on_move()
                 #moving completed, take on band state
                 self.state = state
+            #send completed event
+            info = OrderedDict()
+            info['timestamp'] = time.time()
+            info['state']     = self.state
+            self._send_event("FLATFIELD_SWITCHER_COMPLETED", info)
         finally: 
             #ensure that windings are always in left off state, even during exception
-            self.set_windings('off')
-           
-    
-#    def fine_adjust(self, steps, adjust_speed = None):
-#        """uses the bands picomotor driver to finely adjust the diffraction grating"""
-#        if adjust_speed is None:
-#            adjust_speed = self.configuration['default_adjust_speed']
-#        if self.band is None:
-#            self.select_band('H2O')
-#        picomotor = None
-#        if self.band == 'H2O':
-#            picomotor = self.devices['picomotorA']
-#        elif self.band == 'O2A':
-#            picomotor = self.devices['picomotorB']
-#        picomotor.initialize()
-#        picomotor.move_relative(steps, speed = adjust_speed)
-#        picomotor.wait()
-            
+            self.set_windings('off') 
             
     def main(self):
         try:
             state = self.configuration['state']
-            #send start event
-            info = OrderedDict()
-            info['from_state'] = self.state
-            info['to_state'] = state
-            self._send_event("FLATFIELD_SWITCHER_SELECT_BAND_STARTED", info)
             self.set_state(state)
-            #send completed event
-            info = OrderedDict()
-            info['timestamp'] = time.time()
-            info['state']      = self.state
-            self._send_event("FLATFIELD_SWITCHER_SELECT_BAND_COMPLETED", info)
         except Exception as exc:
             info = OrderedDict()
             info['timestamp'] = time.time()
             info['exception'] = exc
-            self._send_event("FLATFIELD_SWITCHER_SELECT_BAND_FAILED", info)
+            self._send_event("FLATFIELD_SWITCHER_FAILED", info)
         finally:
             #IMPORTANT!
             self.reset() #reset the controller to be used again

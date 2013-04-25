@@ -35,7 +35,7 @@ class Interface(Controller):
             self._send_event("FLATFIELD_SWITCHER_INITIALIZE_STARTED", info)
             with flip_motor.motor_controller._mutex:
                 self.initialize_devices()
-            if self.state = None:
+            if self.state == None:
                 self.goto_home()
             self.set_state('out')
             #send initialize completed event
@@ -69,7 +69,7 @@ class Interface(Controller):
             #send start event
             info = OrderedDict()
             info['timestamp'] = time.time()
-            infp['state']     = self.state
+            info['state']     = self.state
             self._send_event("FLATFIELD_SWITCHER_SEEKING_HOME_STARTED", info)
             #get the device
             flip_motor = self.devices['flip_motor']
@@ -87,7 +87,7 @@ class Interface(Controller):
             #send completed event
             info = OrderedDict()
             info['timestamp'] = time.time()
-            infp['state']     = self.state
+            info['state']     = self.state
             self._send_event("FLATFIELD_SWITCHER_SEEKING_HOME_COMPLETED", info)
         finally: 
             #ensure that windings are always in left off state, even during exception

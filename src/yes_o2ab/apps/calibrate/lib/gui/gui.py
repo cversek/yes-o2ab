@@ -362,7 +362,7 @@ class GUI:
         self.capture_continually_button.config(state='disabled', bg='green', relief="sunken")
         self.stop_button.config(state='normal')
         self._capture_mode = "continual"
-        capture_interval = int(1000*float(self.capture_settings_dialog.form['capture_interval'])) #convert to milliseconds
+        capture_interval = float(self.capture_settings_dialog.form['capture_interval'])
         #set up the image capture controller in loop mode
         image_capture = self.app.load_controller('image_capture')
         image_capture.set_configuration(num_captures = None,
@@ -695,7 +695,7 @@ class GUI:
         self.last_image_data    = I        
         self.last_image_display = disp_img
         self.last_photo = photo = ImageTk.PhotoImage(disp_img) #keep the reference
-        self.photo_label_widget.config(image = photo)     #update the widget
+        self.photo_label_widget.config(image = photo)          #update the widget
         
     def _update_fields(self, md):
         self.filter_position_field.setvalue(str(md['filt_pos']))
@@ -736,7 +736,7 @@ class GUI:
         if os.path.exists(SETTINGS_FILEPATH):
             self.app.print_comment("loading from settings file '%s'" % SETTINGS_FILEPATH)
             settings = shelve.open(SETTINGS_FILEPATH)
-            self.capture_settings_dialog.form['exposure_time'] = settings.get('exposure_time',DEFAULT_EXPOSURE_TIME)
+            self.capture_settings_dialog.form['exposure_time']     = settings.get('exposure_time',DEFAULT_EXPOSURE_TIME)
             self.capture_settings_dialog.form['capture_interval']  = settings.get('capture_interval', DEFAULT_CAPTURE_INTERVAL)
             settings.close() 
         else:
@@ -745,12 +745,15 @@ class GUI:
     def _cache_settings(self):
         self.app.print_comment("caching to settings file '%s'" % SETTINGS_FILEPATH)
         settings = shelve.open(SETTINGS_FILEPATH)
-        settings['exposure_time'] = self.capture_settings_dialog.form['exposure_time']
+        settings['exposure_time']     = self.capture_settings_dialog.form['exposure_time']
         settings['capture_interval']  = self.capture_settings_dialog.form['capture_interval']
         settings.close()
         
             
     def _close(self):
+        #abort all active controllers
+        image_capture = self.app.load_controller('image_capture')
+        image_capture.abort()
         #cache the GUI settings FIXME - is this necessary?
         self._cache_settings()
         self.win.destroy()

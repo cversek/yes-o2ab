@@ -395,6 +395,8 @@ class GUI:
             #do not reschedule loop
 
     def stop(self):
+        image_capture = self.app.load_controller('image_capture')
+        image_capture.stop()
         self._capture_mode = None
     
     def filter_select(self):

@@ -33,7 +33,7 @@ class Interface(FLIDevice):
     #--------------------------------------------------------------------------
     def take_photo(self, 
                    exptime, 
-                   frametype = "normal",        
+                   frametype = "normal",
                    bitdepth  = "16bit",
                   ):
         """ Acquire an image with parameters:
@@ -47,10 +47,43 @@ class Interface(FLIDevice):
         self.initialize()
         self._driver.set_exposure(exptime = exptime, frametype = frametype)
         self._driver.set_bitdepth(bitdepth)
-        img = self._driver.take_photo()
+        img = self._driver.take_photo() #this call will block
         #cache the image
-        self.last_image = img       
+        self.last_image = img
         return img
+        
+    def start_exposure(self, 
+                   exptime, 
+                   frametype = "normal",
+                   bitdepth  = "16bit",
+                  ):
+        """ Start an exposure and return immediately.
+            Use the method  'get_timeleft' to check the exposure progress 
+            until it returns 0, then use method 'fetch_image' to fetch the image
+            data as a numpy array.
+            Exposure parameters:
+                exptime   - length of exposure in milliseconds
+                frametype - 'normal'     - open shutter exposure
+                            'dark'       - exposure with shutter closed
+                            'rbi_flush'  - flood CCD with internal light
+                            default = 'normal'
+                bitdepth  - '8bit' or '16bit', default = '16bit'
+        """
+        self.initialize()
+        self._driver.set_exposure(exptime = exptime, frametype = frametype)
+        self._driver.set_bitdepth(bitdepth)
+        self._driver.start_exposure()
+    
+    def get_exposure_timeleft(self):
+        """ Returns the time left on the exposure in milliseconds.
+        """
+        return self._driver.get_exposure_timeleft()
+        
+    def fetch_image(self):
+        """ Fetch the image data for the last exposure.
+            Returns a numpy.ndarray object.
+        """
+        return self._driver.fetch_image()
 
     def show_image(self):
         """ displays the last taken image with pylab.imshow
@@ -76,12 +109,11 @@ class Interface(FLIDevice):
     
     def get_info(self):
         return self._driver.get_info()
-           
+    
     #--------------------------------------------------------------------------
-      
 
 #------------------------------------------------------------------------------
-# INTERFACE CONFIGURATOR         
+# INTERFACE CONFIGURATOR
 def get_interface(serial_number, **kwargs):
     obj = Interface(serial_number=serial_number)
     image_area = kwargs.pop('image_area', None)

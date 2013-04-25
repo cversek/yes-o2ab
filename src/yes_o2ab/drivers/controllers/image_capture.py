@@ -208,10 +208,10 @@ class Interface(Controller):
             info['image_array'] = I
             self._send_event("IMAGE_CAPTURE_EXPOSURE_COMPLETED", info)
             return self.last_image
-            
+
     def query_metadata(self):
         camera = self.devices['camera']
-        with camera._mutex: #locks the resource
+        with camera._mutex: #locks the resource            
             self.metadata['CC_temp']  = camera.get_CC_temp()
             self.metadata['CH_temp']  = camera.get_CH_temp()
             self.metadata['CC_power'] = camera.get_CC_power()

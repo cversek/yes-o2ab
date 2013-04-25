@@ -24,7 +24,8 @@ YES O2AB Calibrate %(version)s
     authors: Craig Versek (cwv@yesinc.com)
 *******************************************************************************
 """
-DEFAULT_EXPTIME = 10 # milliseconds
+DEFAULT_EXPTIME         = 10 # milliseconds
+DEFAULT_RBI_NUM_FLUSHES = 0
 
 USED_CONTROLLERS = [
                     'image_capture',
@@ -204,6 +205,7 @@ class Application:
     def acquire_image(self,
                       frametype = 'normal', 
                       exptime   = DEFAULT_EXPTIME, 
+                      rbi_num_flushes = DEFAULT_RBI_NUM_FLUSHES,
                       blocking  = True,
                       ):
         image_capture = self.load_controller('image_capture')
@@ -211,9 +213,11 @@ class Application:
         self.last_capture_metadata = self.query_metadata() #get freshest copy
         image_capture.set_configuration(frametype=frametype,
                                         exposure_time=exptime,
+                                        num_captures = 1,
                                        ) 
         if blocking:
-            image_capture.run() #this will block until image is acquired              
+            image_capture.run() #this will block until image is acquired
+            return image_capture.last_image          
         else:
             image_capture.start() #this should not block
             

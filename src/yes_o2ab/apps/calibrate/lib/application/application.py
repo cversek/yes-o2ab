@@ -33,7 +33,6 @@ USED_CONTROLLERS = [
                     'filter_switcher', 
                     'band_adjuster',  #FIXME can't be initialized with known state!
                     'focus_adjuster',
-                    'flatfield_switcher',
                    ]
 
 ###############################################################################

@@ -80,8 +80,8 @@ class Interface(Controller):
         
     def main(self):
         try:
-            pos = self.configuration['position']
-            self.set_filter_by_position(pos)
+            position = self.configuration['position']
+            self.set_filter_by_position(position)
         except Exception as exc:
             info = OrderedDict()
             info['timestamp'] = time.time()

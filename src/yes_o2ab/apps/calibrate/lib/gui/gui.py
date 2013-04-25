@@ -310,6 +310,38 @@ class GUI:
     def change_capture_settings(self):
         self.app.print_comment("changing capture settings...")
         self.capture_settings_dialog.activate()
+        
+    def capture_once(self):
+        #prevent multiple presses
+        self.capture_once_button.configure(state='disabled')
+        #get parameters
+        exptime = int(self.capture_settings_dialog.form['exposure_time'])
+        self.app.print_comment("Capturing image:")
+        #acquire image and process into rudimentary spectrum
+        self.app.print_comment("\texposing for %d milliseconds..." % (exptime,))
+        self.app.acquire_image(exptime=exptime, blocking = False)
+        #self.busy()
+        self.win.after(LOOP_DELAY,self._wait_on_capture_loop)
+        
+    def _wait_on_capture_loop(self):
+        image_capture = self.app.load_controller('image_capture')
+        if image_capture.thread_isAlive(): 
+            #reschedule loop
+            self.win.after(LOOP_DELAY,self._wait_on_capture_loop)
+        else:
+            #self.not_busy()
+            self.capture_once_button.configure(state='normal')
+            self.app.print_comment("capture completed")
+            self.app.compute_spectrum()
+            md = self.app.last_capture_metadata.copy()
+            S = self.app.last_spectrum
+            I = self.app.last_image
+            self._update_spectral_plot(S)
+            self._update_image(I)
+            self._update_fields(md)
+            self.replot_spectrum_button.config(state='normal') #data can now be replotted
+            self.export_spectrum_button.config(state='normal') #data can now be exported
+            self.save_image_button.config(state='normal') #data can now be exported
     
     def capture_on_adjust(self):
         if self._capture_mode == "on_adjust": #toggle it off
@@ -340,8 +372,14 @@ class GUI:
             #reschedule loop
             self.win.after(LOOP_DELAY,self._capture_continually_loop)
         elif self._capture_mode == "continual":
-            self.capture_once()
+            #self.capture_once()
             capture_interval = int(1000*float(self.capture_settings_dialog.form['capture_interval'])) #convert to milliseconds
+            #get parameters
+            exptime = int(self.capture_settings_dialog.form['exposure_time'])
+            self.app.print_comment("Capturing image:")
+            #acquire image and process into rudimentary spectrum
+            self.app.print_comment("\texposing for %d milliseconds..." % (exptime,))
+            self.app.acquire_image(exptime=exptime, blocking = False)
             #reschedule loop
             self.win.after(capture_interval,self._capture_continually_loop)
         else:
@@ -352,36 +390,7 @@ class GUI:
             self.stop_button.config(state='disabled')
             #do not reschedule loop
 
-    def capture_once(self):
-        exptime = int(self.capture_settings_dialog.form['exposure_time'])
-        self.app.print_comment("Acquiring spectrum.")
-        #acquire image and process into rudimentary spectrum
-        self.app.print_comment("Exposing for %d milliseconds..." % (exptime,), eol='')
-        self.app.acquire_image(exptime=exptime, blocking = False)
-        #self.busy()
-        #prevent multiple presses
-        self.capture_once_button.configure(state='disabled')
-        self.win.after(LOOP_DELAY,self._wait_on_capture_loop)
-        
-    def _wait_on_capture_loop(self):
-        image_capture = self.app.load_controller('image_capture')
-        if image_capture.thread_isAlive(): 
-            #reschedule loop
-            self.win.after(LOOP_DELAY,self._wait_on_capture_loop)
-        else:
-            #self.not_busy()
-            self.capture_once_button.configure(state='normal')
-            self.app.print_comment("completed")
-            self.app.compute_spectrum()
-            md = self.app.last_capture_metadata.copy()
-            S = self.app.last_spectrum
-            I = self.app.last_image
-            self._update_spectral_plot(S)
-            self._update_image(I)
-            self._update_fields(md)
-            self.replot_spectrum_button.config(state='normal') #data can now be replotted
-            self.export_spectrum_button.config(state='normal') #data can now be exported
-            self.save_image_button.config(state='normal') #data can now be exported
+    
         
 
     def stop(self):

@@ -138,10 +138,10 @@ class Application:
         sample = condition_monitor.acquire_sample()
         self.metadata.update(sample)
         return self.metadata
- 
+    
     def setup_textbox_printer(self, textbox_printer):
         self.textbox_printer = textbox_printer
-
+    
     def print_comment(self, text, eol = '\n', comment_prefix = '#'):
         buff = ""        
         if eol:        
@@ -156,7 +156,7 @@ class Application:
     def print_log_msg(self,msg):
         stream_print(msg, stream = self.log_stream)
         self.print_comment("Logged: " + msg)        
-              
+    
     def load_device(self,handle):
         #self.print_comment("Loading device '%s'..." % handle, eol='') 
         try:
@@ -178,7 +178,7 @@ class Application:
                 raise exc
             else:
                 warn("ignoring following error:\n---\n%s\n---" % exc, RuntimeWarning)
-                
+    
     def load_controller(self, name):
         try:
             try:
@@ -195,13 +195,6 @@ class Application:
         except KeyError:
             pass
     
-#    def set_camera_params(self, image_area, exptime):
-#        #configure the camera
-#        camera = self.load_device('camera')
-#        ul_x, ul_y, lr_x, lr_y = image_area
-#        camera.set_image_area(ul_x,ul_y,lr_x,lr_y)
-#        camera.set_exposure(exptime)
-                
     def acquire_image(self,
                       frametype = 'normal', 
                       exptime   = DEFAULT_EXPTIME, 
@@ -214,16 +207,17 @@ class Application:
         image_capture.set_configuration(frametype=frametype,
                                         exposure_time=exptime,
                                         num_captures = 1,
-                                       ) 
+                                       )
         if blocking:
             image_capture.run() #this will block until image is acquired
-            return image_capture.last_image          
+            return image_capture.last_image
         else:
             image_capture.start() #this should not block
             
-    def compute_spectrum(self):
+    def compute_spectrum(self, I = None):
         image_capture = self.load_controller('image_capture')
-        I = image_capture.last_image
+        if I is None:
+            I = image_capture.last_image
         S = None
         if not I is None:
             S = I.sum(axis=0)
@@ -231,18 +225,6 @@ class Application:
         self.last_image = I
         self.last_spectrum = S
         return S
-                      
-    
-#    def 
-#        I = camera.take_photo(exptime)
-#        
-#        self.print_comment("completed.") 
-#        S = I.sum(axis=0)
-#        #cache the last spectrum and image
-#        self.last_image = I
-#        self.last_spectrum = S
-#        self.last_capture_metadata = self.query_metadata() #get freshest copy
-#        return (S, I)
         
     def export_spectrum(self, filename):
         """export the spectrum in a data format matching the file extension
@@ -304,6 +286,3 @@ class Application:
             focus_adjuster.run()
         else:
             focus_adjuster.start() #run as seperate thread
-        
-
-        

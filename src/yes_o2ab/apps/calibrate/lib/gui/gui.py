@@ -325,23 +325,28 @@ class GUI:
         
     def _wait_on_capture_loop(self):
         image_capture = self.app.load_controller('image_capture')
+        #read out all pending events
+        while not image_capture.event_queue.empty():
+            event, info = image_capture.event_queue.get()
+            self.print_event(event,info)
         if image_capture.thread_isAlive(): 
             #reschedule loop
             self.win.after(LOOP_DELAY,self._wait_on_capture_loop)
         else:
+            #finish up
+            md = self.app.last_capture_metadata.copy()
+            self._update_fields(md)
             #self.not_busy()
             self.capture_once_button.configure(state='normal')
             self.app.print_comment("capture completed")
             self.app.compute_spectrum()
-            md = self.app.last_capture_metadata.copy()
             S = self.app.last_spectrum
             I = self.app.last_image
             self._update_spectral_plot(S)
             self._update_image(I)
-            self._update_fields(md)
             self.replot_spectrum_button.config(state='normal') #data can now be replotted
             self.export_spectrum_button.config(state='normal') #data can now be exported
-            self.save_image_button.config(state='normal') #data can now be exported
+            self.save_image_button.config(state='normal')      #data can now be exported
     
     def capture_on_adjust(self):
         if self._capture_mode == "on_adjust": #toggle it off
@@ -372,21 +377,30 @@ class GUI:
         image_capture.start() #should not block
         #schedule loop
         self._capture_continually_loop()
+        
 
     def _capture_continually_loop(self):
         image_capture = self.app.load_controller('image_capture')
         #read out all pending events
         while not image_capture.event_queue.empty():
             event, info = image_capture.event_queue.get()
-            buff = ["%s:" % event]
-            for key,val in info.items():
-                buff.append("%s: %s" % (key,val))
-            buff = "\n".join(buff)
-            self.app.print_comment(buff)
+            self.print_event(event,info)
+            if event == "IMAGE_CAPTURE_EXPOSURE_COMPLETED":
+                #grab the image, comput the spectrum, then update them
+                I = info['image_array']
+                S = self.app.compute_spectrum(I)
+                self._update_spectral_plot(S)
+                self._update_image(I)
+                self.replot_spectrum_button.config(state='normal') #data can now be replotted
+                self.export_spectrum_button.config(state='normal') #data can now be exported
+                self.save_image_button.config(state='normal')      #data can now be exported
         #reschedule loop
         if image_capture.thread_isAlive():  #wait for the capture to finish, important!
             self.win.after(LOOP_DELAY,self._capture_continually_loop)
         else:
+            #finish up
+            md = self.app.query_metadata()
+            self._update_fields(md)
             #enable all the buttons, except the stop button
             self.capture_once_button.config(state='normal')
             self.capture_on_adjust_button.config(state='normal', bg='light gray', relief = 'raised')
@@ -495,15 +509,23 @@ class GUI:
         #now wait for the parts to move
         self._wait_on_band_and_filter_change_loop()
         
-        
     def _wait_on_band_and_filter_change_loop(self):
         #check the controller states
         band_switcher   = self.app.load_controller('band_switcher')
         filter_switcher = self.app.load_controller('filter_switcher')
-        if band_switcher.thread_isAlive() or filter_switcher.thread_isAlive(): 
+        #read out all pending events
+        while not band_switcher.event_queue.empty():
+            event, info = band_switcher.event_queue.get()
+            self.print_event(event,info)
+        while not filter_switcher.event_queue.empty():
+            event, info = filter_switcher.event_queue.get()
+            self.print_event(event,info)
+        #check thread state
+        if band_switcher.thread_isAlive() or filter_switcher.thread_isAlive():
             #reschedule loop
             self.win.after(LOOP_DELAY,self._wait_on_band_and_filter_change_loop)
         else:
+            #finish up
             md = self.app.query_metadata()
             self._update_fields(md)
             self.not_busy()
@@ -545,23 +567,26 @@ class GUI:
     def _wait_on_band_adjust_loop(self):
         #check the controller states
         band_adjuster  = self.app.load_controller('band_adjuster')
+        #read out all pending events
+        while not band_adjuster.event_queue.empty():
+            event, info = band_adjuster.event_queue.get()
+            self.print_event(event,info)
+            if event == 'BAND_ADJUSTER_STEP_POLL':
+                position = info['position']
+                self.band_adjust_position_field.setvalue(position)
+        #check thread state
         if band_adjuster.thread_isAlive():
-            #FIXME is this the way the update should be done?
-            while not band_adjuster.event_queue.empty():
-                event, info = band_adjuster.event_queue.get()
-                if event == 'BAND_ADJUSTER_STEP_POLL':
-                    pos = info['position']
-                    self.band_adjust_position_field.setvalue(pos) 
             #reschedule loop
             self.win.after(LOOP_DELAY,self._wait_on_band_adjust_loop)
         else:
-            #self.update_fields() #FIXME does this need to be done?
+            #finish up
+            md = self.app.query_metadata()
+            self._update_fields(md)
             self.band_adjust_position_field.configure(entry_fg = "black")
             self.not_busy()
             self.app.print_comment("finished")
             if self._capture_mode == "on_adjust":
                 self.capture_once()
-                
         
     def focus_adjust(self, step_direction):
         #get the stepsize from the field
@@ -576,24 +601,20 @@ class GUI:
         self.focus_adjust_position_field.configure(entry_fg = "dark gray")
         self.busy()
         self.app.adjust_focus(step, blocking = False) #don't block
-        self._wait_focus_adjust_loop()
+        self._wait_on_focus_adjust_loop()
         
-    def _wait_focus_adjust_loop(self):
+    def _wait_on_focus_adjust_loop(self):
         #check the controller states
         focus_adjuster  = self.app.load_controller('focus_adjuster')
+        #read out all pending events
+        while not focus_adjuster.event_queue.empty():
+            event, info = focus_adjuster.event_queue.get()
+            self.print_event(event,info)
+            if event == 'FOCUS_ADJUSTER_STEP_POLL':
+                position = info['position']
+                self.focus_adjust_position_field.setvalue(position)
+        #check thread state
         if focus_adjuster.thread_isAlive():
-            #FIXME is this the way the update should be done?
-            while not focus_adjuster.event_queue.empty():
-                event, info = focus_adjuster.event_queue.get()
-                buff = ["%s:" % event]
-                for key,val in info.items():
-                    buff.append("%s: %s" % (key,val))
-                buff = "\n".join(buff)
-                self.app.print_comment(buff)
-                if event == 'FOCUS_ADJUSTER_STEP_POLL':
-                    pos = info['position']
-                    self.focus_adjust_position_field.setvalue(pos)
-                #elif event == 'FOCU
             #reschedule loop
             self.win.after(LOOP_DELAY,self._wait_focus_adjust_loop)
         else:
@@ -604,17 +625,6 @@ class GUI:
             self.app.print_comment("finished")
             if self._capture_mode == "on_adjust":
                 self.capture_once()
-
-    def set_flatfield(self, state):
-        if state == True:
-            inactive_color = self.flatfield_posIN_button.cget('bg')
-            self.flatfield_posIN_button.config(state='disabled', bg='green')
-            self.flatfield_posOUT_button.config(state='normal', bg= inactive_color)
-        elif state == False:
-            inactive_color = self.flatfield_posOUT_button.cget('bg')
-            self.flatfield_posOUT_button.config(state='disabled', bg='green')
-            self.flatfield_posIN_button.config(state='normal', bg= inactive_color)
-        #self.app.set_flatfield(state) #TODO
 
     def export_spectrum(self):
         self.app.print_comment("Exporting data...")
@@ -657,7 +667,7 @@ class GUI:
                            key = None
                           )
         if filename:
-            I = self.last_image_data
+            I = self.app.last_image
             img = scipy.misc.toimage(I,mode='I') #convert  to 16-bit greyscale
             img.save(filename)
             
@@ -719,18 +729,16 @@ class GUI:
         self.band_adjust_position_field.setvalue(str(band_adjust_pos))
         focuser_pos = md['focuser_pos']
         self.focus_adjust_position_field.setvalue(str(focuser_pos))
- 
-#    def wait_on_experiment(self):
-#        if self.app.check_experiment_completed():
-#            self.app.shutdown_experiment() 
-#            self.win.after(WAIT_DELAY,self.wait_on_experiment_shutdown)           
-#        else:
-#            self.win.after(WAIT_DELAY,self.wait_on_experiment)
-
 
     def print_to_text_display(self, text, eol='\n'):
-        self.text_display.print_text(text, eol=eol)   
-     
+        self.text_display.print_text(text, eol=eol) 
+        
+    def print_event(self, event, info = {}):
+        buff = ["%s:" % event]
+        for key,val in info.items():
+            buff.append("%s: %s" % (key,val))
+        buff = "\n".join(buff)
+        self.print_to_text_display(buff)
 
     def _load_settings(self):
         if os.path.exists(SETTINGS_FILEPATH):

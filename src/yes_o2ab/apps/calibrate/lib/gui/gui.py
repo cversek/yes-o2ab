@@ -616,7 +616,7 @@ class GUI:
         #check thread state
         if focus_adjuster.thread_isAlive():
             #reschedule loop
-            self.win.after(LOOP_DELAY,self._wait_focus_adjust_loop)
+            self.win.after(LOOP_DELAY,self._wait_on_focus_adjust_loop)
         else:
             md = self.app.query_metadata()
             self._update_fields(md)
@@ -651,15 +651,14 @@ class GUI:
         exptime = int(self.capture_settings_dialog.form['exposure_time'])
         default_filename = "%s_raw_image_exptime=%dms.png" % (dt_now_str,exptime) 
         fdlg = SaveFileDialog(self.win,title="Save Raw Spectrum Data")
-        ws = self.win.winfo_screenwidth()
-        hs = self.win.winfo_screenheight()
-        w = ws/2
-        h = hs/4
-        # calculate position x, y
-        x = (ws/2) - (w/2)
-        y = (hs/2) - (h/2)
-        fdlg.geometry("%dx%d+%d+%d" % (w,h,x,y))
-        
+        #ws = self.win.winfo_screenwidth()
+        #hs = self.win.winfo_screenheight()
+        #w = ws/2
+        #h = hs/4
+        ## calculate position x, y
+        #x = (ws/2) - (w/2)
+        #y = (hs/2) - (h/2)
+        #fdlg.geometry("%dx%d+%d+%d" % (w,h,x,y))
         userdata_path = self.app.config['paths']['data_dir']    
         filename = fdlg.go(dir_or_file = userdata_path, 
                            pattern="*.png", 

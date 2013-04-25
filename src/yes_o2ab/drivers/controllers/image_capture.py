@@ -50,26 +50,33 @@ class Interface(Controller):
         self.opaque_state = False
 
     def initialize(self, **kwargs):
-        self.thread_init(**kwargs) #gets the threads working
-        camera = self.devices['camera']
         try:
+            self.thread_init(**kwargs) #gets the threads working
+            camera = self.devices['camera']
+            flatfield_switcher = self.controllers['flatfield_switcher']
             camera_info = None
             with camera._mutex: #locks the resource
                 self.initialize_devices()
                 camera_info = camera.get_info() #add a bunch of metadata
-            self.set_flatfield('out')
-            #send initialize start event
+             #send initialize start event
             info = OrderedDict()
             info['timestamp'] = time.time()
             info['camera_info'] = camera_info
-            self._send_event("IMAGE_CAPTURE_INITIALIZED", info)
+            self._send_event("IMAGE_CAPTURE_INITIALIZE_STARTED", info)
+            #initialize component controllers
+            flatfield_switcher.initialize(**kwargs)
+            #send initialize completed event
+            info = OrderedDict()
+            info['timestamp'] = time.time()
+            info['camera_info'] = camera_info
+            self._send_event("IMAGE_CAPTURE_INITIALIZE_COMPLETED", info)
             return True
         except Exception as exc: #can't get mutex locks (thread or process level)
             #send initialize end
             info = OrderedDict()
             info['timestamp'] = time.time()
             info['exception'] = exc
-            self._send_event("IMAGE_CAPTURE_INITIALIZE_FAIL", info)
+            self._send_event("IMAGE_CAPTURE_INITIALIZE_FAILED", info)
             return False
             
     def shutdown(self):
@@ -81,22 +88,17 @@ class Interface(Controller):
             frametype    = self.configuration['frametype']
             num_captures = int(self.configuration['num_captures'])
             repeat_delay = float(self.configuration['repeat_delay'])
-            
-            # CONFIGURE OPTICS -------------------------------------------
-            self.configure_optics(frametype)
-           
             # START LOOP -------------------------------------------------
             i = 0
             while True:
-                if  self._thread_check_stop_event() or 
-                    (not num_captures is None and i >= num_captures):
+                if  self._thread_check_stop_event() or (not num_captures is None and i >= num_captures):
                         # END NORMALLY -----------------------------------
-                         info = OrderedDict()
+                        info = OrderedDict()
                         info['timestamp'] = time.time()
                         self._send_event("IMAGE_CAPTURE_LOOP_STOPPED",info)
                         return
                 # CAPTURE ------------------------------------------------
-                self.do_exposure()
+                self.do_exposure(frametype)
                 # SLEEP for a bit ----------------------------------------
                 self.sleep(repeat_delay)
                 i += 1
@@ -113,7 +115,7 @@ class Interface(Controller):
             # FINSIH UP --------------------------------------------------
             self.reset()
             
-     def configure_optics(self, frametype):
+    def configure_optics(self, frametype):
         #first configure the frametype
         if   frametype == "normal":
             self.set_flatfield('out')
@@ -121,9 +123,9 @@ class Interface(Controller):
         elif frametype == "dark":
             self.set_opaque_filter(False)
         elif frametype == "bias":
-            exptime = 0 #bias is a zero time readout
+            #bias is a zero time readout
             self.set_opaque_filter(False)
-        elif frametype == "flat_field":
+        elif frametype == "flatfield":
             #require the flipper to be moved up
             self.set_flatfield('in')
             self.set_opaque_filter(False)
@@ -156,16 +158,20 @@ class Interface(Controller):
                 filter_switcher.set_filter_by_position(old_pos)
             self.opaque_state = False
         
-    def do_exposure(self):
+    def do_exposure(self, frametype = 'normal'):
         camera    = self.devices['camera']
         frametype = self.configuration['frametype']
         #hbin    = int(self.configuration['hbin'])
         #vbin    = int(self.configuration['vbin'])
         exptime = int(self.configuration['exposure_time'])
+        if frametype == 'bias':
+            exptime = 0 #bias is a zero time exposure
         #rbi_hbin = int(self.configuration['rbi_hbin'])
         #rbi_vbin = int(self.configuration['rbi_vbin'])
         rbi_exptime = int(self.configuration['rbi_exposure_time'])
         rbi_nflushes = int(self.configuration['rbi_num_flushes'])
+        #configure the optics for the frametype
+        self.configure_optics(frametype)
         info = OrderedDict()
         info['timestamp'] = time.time()
         info['frametype'] = frametype
@@ -203,7 +209,7 @@ class Interface(Controller):
             self._send_event("IMAGE_CAPTURE_EXPOSURE_COMPLETED", info)
             return self.last_image
             
-     def query_metadata(self):
+    def query_metadata(self):
         camera = self.devices['camera']
         with camera._mutex: #locks the resource
             self.metadata['CC_temp']  = camera.get_CC_temp()

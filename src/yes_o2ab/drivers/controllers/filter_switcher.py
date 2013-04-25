@@ -62,7 +62,7 @@ class Interface(Controller):
         info = OrderedDict()
         info['timestamp'] = time.time()
         info['from_position'] = self.position
-        info['to_position']   = pos
+        info['to_position']   = position
         self._send_event("FILTER_SWITCHER_STARTED", info)
         filter_wheel = self.devices['filter_wheel']
         with filter_wheel._mutex:

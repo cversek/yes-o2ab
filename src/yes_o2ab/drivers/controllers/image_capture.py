@@ -7,7 +7,7 @@ Configuration:
 frametype - 'normal'     - open shutter exposure
             'dark'       - exposure with shutter closed
             'bias'       - zero second exposure (exptime ignnored)
-            'flat_field' - white screen in front of camera
+            'flatfield'  - white screen in front of camera
             'opaque'     - filter wheel locking light input
             
 exposure_time     - length of exposure in milliseconds (default 100)
@@ -17,7 +17,7 @@ rbi_num_flushes   - number of Residual Bulk Image (flood then flush) frames
 rbi_exposure_time - length of the RBI exposure in milliseconds (default 10)
 """
 ###############################################################################
-import sys, time, copy
+import sys, time, copy, traceback
 from automat.core.hwcontrol.controllers.controller import Controller, AbortInterrupt, NullController
 OrderedDict = None
 try:
@@ -86,7 +86,9 @@ class Interface(Controller):
     def main(self):
         try:
             frametype    = self.configuration['frametype']
-            num_captures = int(self.configuration['num_captures'])
+            num_captures = self.configuration['num_captures']
+            if not num_captures is None:
+                num_captures = int(num_captures)
             repeat_delay = float(self.configuration['repeat_delay'])
             # START LOOP -------------------------------------------------
             i = 0
@@ -117,21 +119,26 @@ class Interface(Controller):
             
     def configure_optics(self, frametype):
         #first configure the frametype
-        if   frametype == "normal":
+        if   frametype == 'normal':
             self.set_flatfield('out')
             self.set_opaque_filter(False)
-        elif frametype == "dark":
+            self.configuration['camera_frametype'] = 'normal'
+        elif frametype == 'dark':
             self.set_opaque_filter(False)
-        elif frametype == "bias":
+            self.configuration['camera_frametype'] = 'dark'
+        elif frametype == 'bias':
             #bias is a zero time readout
             self.set_opaque_filter(False)
-        elif frametype == "flatfield":
+            self.configuration['camera_frametype'] = 'dark'
+        elif frametype == 'flatfield':
             #require the flipper to be moved up
             self.set_flatfield('in')
             self.set_opaque_filter(False)
-        elif frametype == "opaque":
+            self.configuration['camera_frametype'] = 'normal'
+        elif frametype == 'opaque':
             self.set_flatfield('out')
             self.set_opaque_filter(True)
+            self.configuration['camera_frametype'] = 'normal'
         else:
             raise ValueError("frametype '%s' is not valid" % frametype)
         
@@ -160,7 +167,6 @@ class Interface(Controller):
         
     def do_exposure(self, frametype = 'normal'):
         camera    = self.devices['camera']
-        frametype = self.configuration['frametype']
         #hbin    = int(self.configuration['hbin'])
         #vbin    = int(self.configuration['vbin'])
         exptime = int(self.configuration['exposure_time'])
@@ -171,10 +177,12 @@ class Interface(Controller):
         rbi_exptime = int(self.configuration['rbi_exposure_time'])
         rbi_nflushes = int(self.configuration['rbi_num_flushes'])
         #configure the optics for the frametype
-        self.configure_optics(frametype)
+        self.configure_optics(frametype) #sets camera_frametype
+        camera_frametype = self.configuration['camera_frametype']
         info = OrderedDict()
         info['timestamp'] = time.time()
         info['frametype'] = frametype
+        info['camera_frametype'] = camera_frametype
         #info['hbin'] = hbin
         #info['vbin'] = vbin
         info['exposure_time'] = exptime
@@ -192,19 +200,37 @@ class Interface(Controller):
                 info['index']     = i
                 info['exposure_time'] = rbi_exptime
                 self._send_event("IMAGE_CAPTURE_EXPOSURE_RBI_FLUSH", info)
+                #floods the CCD
                 camera.start_exposure(rbi_exptime, frametype = 'rbi_flush')
                 while camera.get_exposure_timeleft() > 0:
                     self._thread_abort_breakout_point()
                     self.sleep(SLEEP_TIME)
+                camera.fetch_image()
+                #finish flush in dark (no shutter) mode
+                camera.start_exposure(0, frametype = 'dark')
+                while camera.get_exposure_timeleft() > 0:
+                    self._thread_abort_breakout_point()
+                    self.sleep(SLEEP_TIME)
+                camera.fetch_image()
             #now acquire the image
-            camera.start_exposure(exptime, frametype = frametype)
+            camera.start_exposure(exptime, frametype = camera_frametype)
             while camera.get_exposure_timeleft() > 0:
                 self._thread_abort_breakout_point()
                 self.sleep(SLEEP_TIME)
-            self.last_image = I = camera.fetch_image()
+            I = camera.fetch_image()
+            self.last_image = I
             #completed
             info = OrderedDict()
             info['timestamp'] = time.time()
+            info['frametype'] = frametype
+            info['camera_frametype'] = camera_frametype
+            #info['hbin'] = hbin
+            #info['vbin'] = vbin
+            info['exposure_time'] = exptime
+            #info['rbi_hbin'] = rbi_hbin
+            #info['rbi_vbin'] = rbi_vbin
+            info['rbi_exposure_time'] = rbi_exptime
+            info['rbi_num_flushes']   = rbi_nflushes
             info['image_array'] = I
             self._send_event("IMAGE_CAPTURE_EXPOSURE_COMPLETED", info)
             return self.last_image

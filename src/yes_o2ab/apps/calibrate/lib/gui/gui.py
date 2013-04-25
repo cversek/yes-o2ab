@@ -362,29 +362,29 @@ class GUI:
         self.capture_continually_button.config(state='disabled', bg='green', relief="sunken")
         self.stop_button.config(state='normal')
         self._capture_mode = "continual"
-        capture_interval = int(1000*float(self.capture_settings_dialog.form['capture_interval'])) #convert to milliseconds
+        capture_interval = float(self.capture_settings_dialog.form['capture_interval'])
         #set up the image capture controller in loop mode
         image_capture = self.app.load_controller('image_capture')
         image_capture.set_configuration(num_captures = None,
                                         repeat_delay = capture_interval,
                                        )
-        self.app.print_comment("Starting image capture loop at repeat interval %d seconds." % (capture,))
+        self.app.print_comment("Starting image capture loop at repeat interval %d seconds." % (capture_interval,))
         image_capture.start() #should not block
         #schedule loop
         self._capture_continually_loop()
 
     def _capture_continually_loop(self):
         image_capture = self.app.load_controller('image_capture')
+        #read out all pending events
+        while not image_capture.event_queue.empty():
+            event, info = image_capture.event_queue.get()
+            buff = ["%s:" % event]
+            for key,val in info.items():
+                buff.append("%s: %s" % (key,val))
+            buff = "\n".join(buff)
+            self.app.print_comment(buff)
+        #reschedule loop
         if image_capture.thread_isAlive():  #wait for the capture to finish, important!
-            #read out all pending events
-            while not image_capture.event_queue.empty():
-                event, info = focus_adjuster.event_queue.get()
-                buff = ["%s:" % event]
-                for key,val in info.items():
-                    buff.append("%s: %s" % (key,val))
-                buff = "\n".join(buff)
-                self.app.print_comment(buff)
-            #reschedule loop
             self.win.after(LOOP_DELAY,self._capture_continually_loop)
         else:
             #enable all the buttons, except the stop button

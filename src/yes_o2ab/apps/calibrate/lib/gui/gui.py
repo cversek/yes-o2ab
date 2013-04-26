@@ -36,6 +36,8 @@ CONFIRMATION_TEXT_DISPLAY_TEXT_HEIGHT = 40
 CONFIRMATION_TEXT_DISPLAY_TEXT_WIDTH  = 80
 
 FIELD_LABEL_FONT = "Courier 10 normal"
+HEADING_LABEL_FONT = "Helvetica 14 bold"
+SUBHEADING_LABEL_FONT = "Helvetica 10 bold"
 
 SETTINGS_FILEPATH = os.path.expanduser("~/.yes_o2ab_calibrate_settings.db")
 
@@ -91,7 +93,7 @@ class GUI:
         #build the left panel
         left_panel = tk.Frame(win)
         #capture controls
-        tk.Label(left_panel, text="Capture Controls:", font = "Helvetica 14 bold").pack(side='top',anchor="w")
+        tk.Label(left_panel, text="Capture Controls:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
         self.change_capture_settings_button = tk.Button(left_panel,text='Change Settings',command = self.change_capture_settings)
         self.change_capture_settings_button.pack(side='top',fill='x', anchor="sw")
         self._capture_mode = None
@@ -106,7 +108,7 @@ class GUI:
         
         #optics controls
         tk.Label(left_panel, pady = 10).pack(side='top',fill='x', anchor="nw")
-        tk.Label(left_panel, text="Optics Controls:", font = "Helvetica 14 bold").pack(side='top',anchor="w")
+        tk.Label(left_panel, text="Optics Controls:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
         self.flatfield_field = Pmw.EntryField(left_panel,
                                               labelpos='w',
                                               label_text=" flatfield:",
@@ -152,7 +154,7 @@ class GUI:
         
         #band fine adjustment controls
         band_adjust_button_frame = tk.Frame(left_panel)
-        tk.Label(band_adjust_button_frame, text="Band Fine Adjust:", font = "Helvetica 10 bold").pack(side='top', anchor="nw")        
+        tk.Label(band_adjust_button_frame, text="Band Fine Adjust:", font = SUBHEADING_LABEL_FONT).pack(side='top', anchor="nw")        
         self.band_adjustL_button = tk.Button(band_adjust_button_frame,text='<--',command = lambda: self.band_adjust('-1'))
         self.band_adjustL_button.pack(side='left', anchor="nw")
         self.band_adjustR_button = tk.Button(band_adjust_button_frame,text='-->',command = lambda: self.band_adjust('+1'))
@@ -178,7 +180,7 @@ class GUI:
         
         #focus adjustment controls
         focus_adjust_button_frame = tk.Frame(left_panel)
-        tk.Label(focus_adjust_button_frame, text="Focus Adjust:", font = "Helvetica 10 bold").pack(side='top', anchor="nw")        
+        tk.Label(focus_adjust_button_frame, text="Focus Adjust:", font = SUBHEADING_LABEL_FONT).pack(side='top', anchor="nw")        
         self.focus_adjustL_button = tk.Button(focus_adjust_button_frame,text='<--',command = lambda: self.focus_adjust('-1'))
         self.focus_adjustL_button.pack(side='left', anchor="nw")
         self.focus_adjustR_button = tk.Button(focus_adjust_button_frame,text='-->',command = lambda: self.focus_adjust('+1'))

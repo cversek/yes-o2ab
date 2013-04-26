@@ -21,6 +21,10 @@ from capture_settings_dialog import CaptureSettingsDialog
 from filter_select_dialog import FilterSelectDialog
 ###############################################################################
 # Module Constants
+from ..common_defs import FRAMETYPE_DEFAULT, EXPOSURE_TIME_DEFAULT,\
+    RBI_NUM_FLUSHES_DEFAULT, RBI_EXPOSURE_TIME_DEFAULT, REPEAT_DELAY_DEFAULT,\
+    FIELD_LABEL_FONT, HEADING_LABEL_FONT, SUBHEADING_LABEL_FONT
+
 WINDOW_TITLE      = "YES O2AB Calibrate"
 WAIT_DELAY        = 100 #milliseconds
 TEXT_BUFFER_SIZE  = 10*2**20 #ten megabytes
@@ -28,16 +32,10 @@ SPECTRAL_FIGSIZE  = (6,5) #inches
 MAX_IMAGESIZE     = (600,500)
 LOOP_DELAY        = 100 #milliseconds
 
-DEFAULT_EXPOSURE_TIME = 10 #milliseconds
-DEFAULT_CAPTURE_INTERVAL  = 10 #seconds
 FINE_ADJUST_STEP_SIZE_DEFAULT = 10 #steps
 
 CONFIRMATION_TEXT_DISPLAY_TEXT_HEIGHT = 40
 CONFIRMATION_TEXT_DISPLAY_TEXT_WIDTH  = 80
-
-FIELD_LABEL_FONT = "Courier 10 normal"
-HEADING_LABEL_FONT = "Helvetica 14 bold"
-SUBHEADING_LABEL_FONT = "Helvetica 10 bold"
 
 SETTINGS_FILEPATH = os.path.expanduser("~/.yes_o2ab_calibrate_settings.db")
 
@@ -317,11 +315,19 @@ class GUI:
         #prevent multiple presses
         self.capture_once_button.configure(state='disabled')
         #get parameters
-        exptime = int(self.capture_settings_dialog.form['exposure_time'])
+        frametype         = self.capture_settings_dialog.frametype_var.get()
+        exposure_time     = int(self.capture_settings_dialog.form['exposure_time'])
+        rbi_num_flushes   = int(self.capture_settings_dialog.form['rbi_num_flushes'])
+        rbi_exposure_time = int(self.capture_settings_dialog.form['rbi_exposure_time'])
+        repeat_delay      = int(self.capture_settings_dialog.form['repeat_delay'])
         self.app.print_comment("Capturing image:")
         #acquire image and process into rudimentary spectrum
-        self.app.print_comment("\texposing for %d milliseconds..." % (exptime,))
-        self.app.acquire_image(exptime=exptime, blocking = False)
+        self.app.print_comment("\texposing for %d milliseconds..." % (exposure_time,))
+        self.app.acquire_image(frametype         = frametype,
+                               exposure_time     = exposure_time,
+                               rbi_num_flushes   = rbi_num_flushes,
+                               rbi_exposure_time = rbi_exposure_time,
+                               blocking = False)
         #self.busy()
         self.win.after(LOOP_DELAY,self._wait_on_capture_loop)
         
@@ -369,13 +375,22 @@ class GUI:
         self.capture_continually_button.config(state='disabled', bg='green', relief="sunken")
         self.stop_button.config(state='normal')
         self._capture_mode = "continual"
-        capture_interval = float(self.capture_settings_dialog.form['capture_interval'])
+        #get parameters
+        frametype         = self.capture_settings_dialog.frametype_var.get()
+        exposure_time     = int(self.capture_settings_dialog.form['exposure_time'])
+        rbi_num_flushes   = int(self.capture_settings_dialog.form['rbi_num_flushes'])
+        rbi_exposure_time = int(self.capture_settings_dialog.form['rbi_exposure_time'])
+        repeat_delay      = int(self.capture_settings_dialog.form['repeat_delay'])
         #set up the image capture controller in loop mode
         image_capture = self.app.load_controller('image_capture')
-        image_capture.set_configuration(num_captures = None,
-                                        repeat_delay = capture_interval,
+        image_capture.set_configuration(frametype         = frametype,
+                                        num_captures      = None, #will cause infinite loop
+                                        exposure_time     = exposure_time,
+                                        rbi_num_flushes   = rbi_num_flushes,
+                                        rbi_exposure_time = rbi_exposure_time,
+                                        repeat_delay      = repeat_delay,
                                        )
-        self.app.print_comment("Starting image capture loop at repeat interval %d seconds." % (capture_interval,))
+        self.app.print_comment("Starting image capture loop with repeat delay %d seconds." % (repeat_delay,))
         image_capture.start() #should not block
         #schedule loop
         self._capture_continually_loop()
@@ -632,8 +647,10 @@ class GUI:
         self.app.print_comment("Exporting data...")
         dt_now = datetime.datetime.utcnow()
         dt_now_str = dt_now.strftime("%Y-%m-%d-%H_%m_%S")
-        exptime = int(self.capture_settings_dialog.form['exposure_time'])
-        default_filename = "%s_raw_spectrum_exptime=%dms.csv" % (dt_now_str,exptime) 
+        #get some metadata for title
+        frametype = self.app.last_capture_metadata['frametype']
+        exptime   = int(self.app.last_capture_metadata['exposure_time'])
+        default_filename = "%s_raw_spectrum-%s_exptime=%dms.csv" % (dt_now_str,frametype,exptime) 
         fdlg = SaveFileDialog(self.win,title="Save Raw Spectrum Data")
         userdata_path = self.app.config['paths']['data_dir']    
 
@@ -650,8 +667,10 @@ class GUI:
         self.app.print_comment("saving image...")
         dt_now = datetime.datetime.utcnow()
         dt_now_str = dt_now.strftime("%Y-%m-%d-%H_%m_%S")
-        exptime = int(self.capture_settings_dialog.form['exposure_time'])
-        default_filename = "%s_raw_image_exptime=%dms.png" % (dt_now_str,exptime) 
+        #get some metadata for title
+        frametype = self.app.last_capture_metadata['frametype']
+        exptime   = int(self.app.last_capture_metadata['exposure_time'])
+        default_filename = "%s_raw_image-%s_exptime=%dms.png" % (dt_now_str,frametype,exptime) 
         fdlg = SaveFileDialog(self.win,title="Save Raw Spectrum Data")
         #ws = self.win.winfo_screenwidth()
         #hs = self.win.winfo_screenheight()
@@ -680,6 +699,11 @@ class GUI:
     def _update_spectral_plot(self, S):
         figure        = self.spectral_figure_widget.get_figure()        
         plot_template = self.spectral_plot_template
+        #get some metadata for plot formatting
+        frametype = self.app.last_capture_metadata['frametype']
+        exptime   = int(self.app.last_capture_metadata['exposure_time'])
+        title     = "Raw Spectrum (%s, %d ms)" % (frametype, exptime)
+        self.spectral_plot_template.configure(title=title)
         if not plot_template.has_been_plotted(): 
             self.app.print_comment("Replotting the spectrum.")
             figure.clear()
@@ -692,6 +716,7 @@ class GUI:
             #get the plot line from the figure FIXME is there an easier way?
             line = figure.axes[0].lines[0]
             line.set_ydata(S)
+            figure.axes[0].set_title(title)
             self.spectral_figure_widget.update()
             
     def _update_image(self, I):
@@ -745,8 +770,11 @@ class GUI:
         if os.path.exists(SETTINGS_FILEPATH):
             self.app.print_comment("loading from settings file '%s'" % SETTINGS_FILEPATH)
             settings = shelve.open(SETTINGS_FILEPATH)
-            self.capture_settings_dialog.form['exposure_time']     = settings.get('exposure_time',DEFAULT_EXPOSURE_TIME)
-            self.capture_settings_dialog.form['capture_interval']  = settings.get('capture_interval', DEFAULT_CAPTURE_INTERVAL)
+            self.capture_settings_dialog.frametype_var.set(FRAMETYPE_DEFAULT) #always load this as default
+            self.capture_settings_dialog.form['exposure_time']     = settings.get('exposure_time'    , EXPOSURE_TIME_DEFAULT)
+            self.capture_settings_dialog.form['rbi_num_flushes']   = settings.get('rbi_num_flushes'  , RBI_NUM_FLUSHES_DEFAULT)
+            self.capture_settings_dialog.form['rbi_exposure_time'] = settings.get('rbi_exposure_time', RBI_EXPOSURE_TIME_DEFAULT)
+            self.capture_settings_dialog.form['repeat_delay']      = settings.get('repeat_delay'     , REPEAT_DELAY_DEFAULT)
             settings.close() 
         else:
             self.app.print_comment("failed to find settings file '%s'" % SETTINGS_FILEPATH)
@@ -754,8 +782,11 @@ class GUI:
     def _cache_settings(self):
         self.app.print_comment("caching to settings file '%s'" % SETTINGS_FILEPATH)
         settings = shelve.open(SETTINGS_FILEPATH)
+        #settings['frametype']         = self.capture_settings_dialog.frametype_var.get()
         settings['exposure_time']     = self.capture_settings_dialog.form['exposure_time']
-        settings['capture_interval']  = self.capture_settings_dialog.form['capture_interval']
+        settings['rbi_num_flushes']   = self.capture_settings_dialog.form['rbi_num_flushes']
+        settings['rbi_exposure_time'] = self.capture_settings_dialog.form['rbi_exposure_time']
+        settings['repeat_delay']      = self.capture_settings_dialog.form['repeat_delay']
         settings.close()
         
             

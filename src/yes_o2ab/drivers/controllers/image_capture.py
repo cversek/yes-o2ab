@@ -26,18 +26,19 @@ except ImportError:
     from yes_o2ab.support.odict import OrderedDict
 ###############################################################################
 DEFAULT_CONFIGURATION = OrderedDict([
+    ('frametype','normal'),
     ('num_captures',1),
     ('repeat_delay', 0),
-    ('bitdepth','16bit'),
-    ('frametype','normal'),
-    ('hbin',1),
-    ('vbin',1),
-    ('rbi_hbin',1),
-    ('rbi_vbin',1),
+    #('bitdepth','16bit'),    
+    #('hbin',1),
+    #('vbin',1),
+    #('rbi_hbin',1),
+    #('rbi_vbin',1),
     ('exposure_time',500),
     #('num_flushes',1),
-    ('rbi_exposure_time',500),
     ('rbi_num_flushes',0),
+    ('rbi_exposure_time',500),
+    
 ])
 
 SLEEP_TIME = 0.100 #seconds

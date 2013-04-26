@@ -24,9 +24,11 @@ YES O2AB Calibrate %(version)s
     authors: Craig Versek (cwv@yesinc.com)
 *******************************************************************************
 """
-DEFAULT_EXPTIME         = 10 # milliseconds
-DEFAULT_RBI_NUM_FLUSHES = 0
 
+#Common Definitions
+from ..common_defs import FRAMETYPE_DEFAULT, EXPOSURE_TIME_DEFAULT,\
+    RBI_NUM_FLUSHES_DEFAULT, RBI_EXPOSURE_TIME_DEFAULT, REPEAT_DELAY_DEFAULT
+    
 USED_CONTROLLERS = [
                     'image_capture',
                     'condition_monitor',
@@ -108,16 +110,18 @@ class Application:
         self.query_metadata()
             
     def query_metadata(self):
+        image_capture     = self.load_controller('image_capture')
         band_switcher     = self.load_controller('band_switcher')
         filter_switcher   = self.load_controller('filter_switcher')
         band_adjuster     = self.load_controller('band_adjuster')
         focus_adjuster    = self.load_controller('focus_adjuster')
-        image_capture     = self.load_controller('image_capture')
         condition_monitor = self.load_controller('condition_monitor')
         
-        band = band_switcher.band
+        #query controllers for state
+        band = band_switcher.query_band()
         if band is None:
             band = "(unknown)"
+        
         filt_pos = filter_switcher.query_position()
         B = filt_pos // 5
         A = filt_pos %  5
@@ -125,18 +129,23 @@ class Application:
         focuser_pos     = focus_adjuster.query_position()
         band_adjust_pos = band_adjuster.query_position()
         
-        self.metadata['timestamp']   = time.time()
-        self.metadata['band']        = band
-        self.metadata['filt_pos']    = filt_pos
-        self.metadata['filt_B_num']  = B
-        self.metadata['filt_A_num']  = A
-        self.metadata['filt_B_type'] = self.filter_B_types[B][1]
-        self.metadata['filt_A_type'] = self.filter_A_types[A][1]
-        self.metadata['band_adjust_pos'] = band_adjust_pos
-        self.metadata['focuser_pos'] = focuser_pos
-        #gets a lot of condition readings (temperature, pressure, etc.)
         sample = condition_monitor.acquire_sample()
-        self.metadata.update(sample)
+        
+        #write the metadata in an importance order (OrderedDict structure)
+        self.metadata['timestamp']         = time.time()
+        self.metadata['frametype']         = image_capture.configuration['frametype']
+        self.metadata['exposure_time']     = int(image_capture.configuration['exposure_time'])
+        self.metadata['rbi_num_flushes']   = int(image_capture.configuration['rbi_num_flushes'])
+        self.metadata['rbi_exposure_time'] = int(image_capture.configuration['rbi_exposure_time'])
+        self.metadata['band']              = band
+        self.metadata['filt_pos']          = filt_pos
+        self.metadata['filt_B_num']        = B
+        self.metadata['filt_A_num']        = A
+        self.metadata['filt_B_type']       = self.filter_B_types[B][1]
+        self.metadata['filt_A_type']       = self.filter_A_types[A][1]
+        self.metadata['band_adjust_pos']   = band_adjust_pos
+        self.metadata['focuser_pos']       = focuser_pos
+        self.metadata.update(sample) # a whole bunch of conditions
         return self.metadata
     
     def setup_textbox_printer(self, textbox_printer):
@@ -196,18 +205,20 @@ class Application:
             pass
     
     def acquire_image(self,
-                      frametype = 'normal', 
-                      exptime   = DEFAULT_EXPTIME, 
-                      rbi_num_flushes = DEFAULT_RBI_NUM_FLUSHES,
-                      blocking  = True,
+                      frametype         = FRAMETYPE_DEFAULT, 
+                      exposure_time     = EXPOSURE_TIME_DEFAULT,
+                      rbi_num_flushes   = RBI_NUM_FLUSHES_DEFAULT,
+                      rbi_exposure_time = RBI_EXPOSURE_TIME_DEFAULT,
+                      blocking          = True,
                       ):
         image_capture = self.load_controller('image_capture')
-        
-        self.last_capture_metadata = self.query_metadata() #get freshest copy
-        image_capture.set_configuration(frametype=frametype,
-                                        exposure_time=exptime,
-                                        num_captures = 1,
+        image_capture.set_configuration(frametype         = frametype,
+                                        num_captures      = 1,
+                                        exposure_time     = exposure_time,
+                                        rbi_num_flushes   = rbi_num_flushes,
+                                        rbi_exposure_time = rbi_exposure_time,
                                        )
+        self.last_capture_metadata = self.query_metadata() #get freshest copy
         if blocking:
             image_capture.run() #this will block until image is acquired
             return image_capture.last_image

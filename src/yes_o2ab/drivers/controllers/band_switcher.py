@@ -54,6 +54,8 @@ class Interface(Controller):
             else:
                 raise ValueError, "'state' must be 'on' or 'off'"
         
+    def query_band(self):
+        return self.band
         
     def select_band(self, band):
         """switches betwen the 'H2O' and 'O2A' bands, windings are

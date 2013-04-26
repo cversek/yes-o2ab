@@ -236,6 +236,8 @@ class Interface(Controller):
             info['rbi_num_flushes']   = rbi_nflushes
             info['image_array'] = I
             self._send_event("IMAGE_CAPTURE_EXPOSURE_COMPLETED", info)
+            #now undo the opaque_state if it was used
+            self.set_opaque_filter(False)
             return self.last_image
 
     def query_metadata(self):

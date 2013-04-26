@@ -397,6 +397,8 @@ class GUI:
                                         rbi_exposure_time = rbi_exposure_time,
                                         repeat_delay      = repeat_delay,
                                        )
+        #refresh the metdata
+        self.app.query_metadata()
         self.app.print_comment("Starting image capture loop with repeat delay %d seconds." % (repeat_delay,))
         image_capture.start() #should not block
         #schedule loop
@@ -422,7 +424,6 @@ class GUI:
                 self._update_spectral_plot(S)
                 self._update_image(I)
                 self.replot_spectrum_button.config(state='normal') #data can now be replotted
-                self.export_spectrum_button.config(state='normal') #data can now be exported
                 self.save_image_button.config(state='normal')      #data can now be exported
           
         #reschedule loop
@@ -431,11 +432,13 @@ class GUI:
         else:
             #finish up
             md = self.app.query_metadata()
+            self.app.last_capture_metadata = md
             self._update_fields(md)
             #enable all the buttons, except the stop button
             self.capture_once_button.config(state='normal')
             self.capture_on_adjust_button.config(state='normal', bg='light gray', relief = 'raised')
             self.capture_continually_button.config(state='normal', bg='light gray', relief = 'raised')
+            self.export_spectrum_button.config(state='normal') #data can now be exported
             self.stop_button.config(state='disabled')
             #do not reschedule loop
 
@@ -714,8 +717,8 @@ class GUI:
         figure        = self.spectral_figure_widget.get_figure()        
         plot_template = self.spectral_plot_template
         #get some metadata for plot formatting
-        frametype = self.app.last_capture_metadata['frametype']
-        exptime   = int(self.app.last_capture_metadata['exposure_time'])
+        frametype = self.app.metadata['frametype']
+        exptime   = int(self.app.metadata['exposure_time'])
         title     = "Raw Spectrum (%s, %d ms)" % (frametype, exptime)
         self.spectral_plot_template.configure(title=title)
         if not plot_template.has_been_plotted(): 

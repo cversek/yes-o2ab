@@ -54,7 +54,6 @@ class Interface(Controller):
         try:
             self.thread_init(**kwargs) #gets the threads working
             camera = self.devices['camera']
-            flatfield_switcher = self.controllers['flatfield_switcher']
             camera_info = None
             with camera._mutex: #locks the resource
                 self.initialize_devices()
@@ -65,7 +64,10 @@ class Interface(Controller):
             info['camera_info'] = camera_info
             self._send_event("IMAGE_CAPTURE_INITIALIZE_STARTED", info)
             #initialize component controllers
+            flatfield_switcher = self.controllers['flatfield_switcher']
             flatfield_switcher.initialize(**kwargs)
+            filter_switcher = self.controllers['filter_switcher']
+            filter_switcher.initialize(**kwargs)
             #send initialize completed event
             info = OrderedDict()
             info['timestamp'] = time.time()

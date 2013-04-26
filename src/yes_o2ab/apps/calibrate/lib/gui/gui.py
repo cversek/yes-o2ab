@@ -349,7 +349,7 @@ class GUI:
         else:
             #finish up
             #md = self.app.last_capture_metadata.copy()
-            md = self.app.query_metadata.copy()
+            md = self.app.query_metadata()
             self._update_fields(md)
             #self.not_busy()
             self.capture_once_button.configure(state='normal')
@@ -409,7 +409,7 @@ class GUI:
         while not image_capture.event_queue.empty():
             event, info = image_capture.event_queue.get()
             self.print_event(event,info)
-            if  event == "FILTER_SWITCHER_STARTED":
+            if   event == "FILTER_SWITCHER_STARTED":
                 #filter is changing like in the 'opaque' frametype
                 self._update_filter_status(None)
             elif event == "FILTER_SWITCHER_COMPLETED":

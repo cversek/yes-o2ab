@@ -108,17 +108,17 @@ class Application:
         self.query_metadata()
             
     def query_metadata(self):
-        band_switcher   = self.load_controller('band_switcher')
-        filter_switcher = self.load_controller('filter_switcher')
-        band_adjuster   = self.load_controller('band_adjuster')
-        focus_adjuster  = self.load_controller('focus_adjuster')
-        image_capture   = self.load_controller('image_capture')
+        band_switcher     = self.load_controller('band_switcher')
+        filter_switcher   = self.load_controller('filter_switcher')
+        band_adjuster     = self.load_controller('band_adjuster')
+        focus_adjuster    = self.load_controller('focus_adjuster')
+        image_capture     = self.load_controller('image_capture')
         condition_monitor = self.load_controller('condition_monitor')
         
         band = band_switcher.band
         if band is None:
             band = "(unknown)"
-        filt_pos = filter_switcher.position
+        filt_pos = filter_switcher.query_position()
         B = filt_pos // 5
         A = filt_pos %  5
         

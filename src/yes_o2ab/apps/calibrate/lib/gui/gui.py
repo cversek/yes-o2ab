@@ -409,7 +409,13 @@ class GUI:
         while not image_capture.event_queue.empty():
             event, info = image_capture.event_queue.get()
             self.print_event(event,info)
-            if event == "IMAGE_CAPTURE_EXPOSURE_COMPLETED":
+            if  event == "FILTER_SWITCHER_STARTED":
+                #filter is changing like in the 'opaque' frametype
+                self._update_filter_status(None)
+            elif event == "FILTER_SWITCHER_COMPLETED":
+               md = self.app.query_filter_status()
+               self._update_filter_status(md)
+            elif event == "IMAGE_CAPTURE_EXPOSURE_COMPLETED":
                 #grab the image, comput the spectrum, then update them
                 I = info['image_array']
                 S = self.app.compute_spectrum(I)
@@ -418,6 +424,7 @@ class GUI:
                 self.replot_spectrum_button.config(state='normal') #data can now be replotted
                 self.export_spectrum_button.config(state='normal') #data can now be exported
                 self.save_image_button.config(state='normal')      #data can now be exported
+          
         #reschedule loop
         if image_capture.thread_isAlive():  #wait for the capture to finish, important!
             self.win.after(LOOP_DELAY,self._capture_continually_loop)

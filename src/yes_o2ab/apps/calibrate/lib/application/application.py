@@ -147,6 +147,18 @@ class Application:
         self.metadata['focuser_pos']       = focuser_pos
         self.metadata.update(sample) # a whole bunch of conditions
         return self.metadata
+        
+    def query_filter_status(self):
+        filter_switcher   = self.load_controller('filter_switcher')
+        filt_pos = filter_switcher.query_position()
+        B = filt_pos // 5
+        A = filt_pos %  5
+        self.metadata['filt_pos']          = filt_pos
+        self.metadata['filt_B_num']        = B
+        self.metadata['filt_A_num']        = A
+        self.metadata['filt_B_type']       = self.filter_B_types[B][1]
+        self.metadata['filt_A_type']       = self.filter_A_types[A][1]
+        return self.metadata
     
     def setup_textbox_printer(self, textbox_printer):
         self.textbox_printer = textbox_printer

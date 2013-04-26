@@ -337,12 +337,19 @@ class GUI:
         while not image_capture.event_queue.empty():
             event, info = image_capture.event_queue.get()
             self.print_event(event,info)
+            if  event == "FILTER_SWITCHER_STARTED":
+                #filter is changing like in the 'opaque' frametype
+                self._update_filter_status(None)
+            elif event == "FILTER_SWITCHER_COMPLETED":
+               md = self.app.query_filter_status()
+               self._update_filter_status(md)
         if image_capture.thread_isAlive(): 
             #reschedule loop
             self.win.after(LOOP_DELAY,self._wait_on_capture_loop)
         else:
             #finish up
-            md = self.app.last_capture_metadata.copy()
+            #md = self.app.last_capture_metadata.copy()
+            md = self.app.query_metadata.copy()
             self._update_fields(md)
             #self.not_busy()
             self.capture_once_button.configure(state='normal')
@@ -732,19 +739,28 @@ class GUI:
         self.last_image_display = disp_img
         self.last_photo = photo = ImageTk.PhotoImage(disp_img) #keep the reference
         self.photo_label_widget.config(image = photo)          #update the widget
+    
+    def _update_filter_status(self, md):
+        if md is None:
+            self.filter_position_field.setvalue("(changing)")
+            self.filter_B_field.setvalue("(changing)")
+            self.filter_A_field.setvalue("(changing)")
+        else:
+            self.filter_position_field.setvalue(str(md['filt_pos']))
+            B = md['filt_B_num']
+            A = md['filt_A_num']
+            B_type = md['filt_B_type']
+            A_type = md['filt_A_type']
+            B_label = "%d, \"%s\"" % (B,B_type)
+            A_label = "%d, \"%s\"" % (A,A_type)
+            self.filter_B_field.setvalue(B_label)
+            self.filter_A_field.setvalue(A_label)
+            self.filter_select_dialog.varB.set(B)
+            self.filter_select_dialog.varA.set(A)
+        
         
     def _update_fields(self, md):
-        self.filter_position_field.setvalue(str(md['filt_pos']))
-        B = md['filt_B_num']
-        A = md['filt_A_num']
-        B_type = md['filt_B_type']
-        A_type = md['filt_A_type']
-        B_label = "%d, \"%s\"" % (B,B_type)
-        A_label = "%d, \"%s\"" % (A,A_type)
-        self.filter_B_field.setvalue(B_label)
-        self.filter_A_field.setvalue(A_label)
-        self.filter_select_dialog.varB.set(B)
-        self.filter_select_dialog.varA.set(A)
+        self._update_filter_status(md)
         band = md['band']
         self.band_field.setvalue(band)
         if band in ['O2A','H2O']:

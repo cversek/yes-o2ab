@@ -6,15 +6,16 @@ Configuration:
 
 frametype - 'normal'     - open shutter exposure
             'dark'       - exposure with shutter closed
-            'bias'       - zero second exposure (exptime ignnored)
-            'flatfield'  - white screen in front of camera
-            'opaque'     - filter wheel locking light input
+            'bias'       - zero second exposure ('exposure_time' ignored)
+            'flatfield'  - open shutter exposure with white screen in front of camera
+            'opaque'     - open shutter exposure with filter wheel blocking light input
             
-exposure_time     - length of exposure in milliseconds (default 100)
-
-rbi_num_flushes   - number of Residual Bulk Image (flood then flush) frames
-
-rbi_exposure_time - length of the RBI exposure in milliseconds (default 10)
+exposure_time     - length of exposure in milliseconds (default 500)
+num_captures      - number of frames to acquire in sequence mode (default 1, 
+                    None means to continue indefinitely)
+rbi_num_flushes   - number of Residual Bulk Image (flood then flush) frames (default 0)
+rbi_exposure_time - length of the RBI exposure in milliseconds (default 500)
+repeat_delay      - the delay between captures in sequence mode
 """
 ###############################################################################
 import sys, time, copy, traceback

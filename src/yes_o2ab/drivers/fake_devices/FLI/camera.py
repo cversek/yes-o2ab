@@ -42,17 +42,49 @@ class Interface(FLIDevice):
                 bitdepth  - '8bit' or '16bit', default = '16bit'
         """
         self.initialize()
-        ## FIXME FAKE cannot do this
         #self._driver.set_exposure(exptime = exptime, frametype = frametype)
-        #self._driver.set_bit_depth(bitdepth)
-        #img = self._driver.take_photo()
+        #self._driver.set_bitdepth(bitdepth)
+        #img = self._driver.take_photo() #this call will block
+        #cache the image
+        self.last_image = self.fetch_image()
+        return img
+    
+    def start_exposure(self, 
+                   exptime, 
+                   frametype = "normal",
+                   bitdepth  = "16bit",
+                  ):
+        """ Start an exposure and return immediately.
+            Use the method  'get_timeleft' to check the exposure progress 
+            until it returns 0, then use method 'fetch_image' to fetch the image
+            data as a numpy array.
+            Exposure parameters:
+                exptime   - length of exposure in milliseconds
+                frametype - 'normal'     - open shutter exposure
+                            'dark'       - exposure with shutter closed
+                            'rbi_flush'  - flood CCD with internal light
+                            default = 'normal'
+                bitdepth  - '8bit' or '16bit', default = '16bit'
+        """
+        self.initialize()
+#        self._driver.set_exposure(exptime = exptime, frametype = frametype)
+#        self._driver.set_bitdepth(bitdepth)
+#        self._driver.start_exposure()
+    
+    def get_exposure_timeleft(self):
+        """ Returns the time left on the exposure in milliseconds.
+        """
+        return 0 #self._driver.get_exposure_timeleft()
+        
+    def fetch_image(self):
+        """ Fetch the image data for the last exposure.
+            Returns a numpy.ndarray object.
+        """
         import os
         from scipy.misc import imread
         this_path = os.path.dirname(__file__)
         img_path = os.sep.join((this_path,"FAKE_solar_spectrumBW.gif"))
         img = imread(img_path)
-        #cache the image
-        self.last_image = img       
         return img
 
     def show_image(self):
@@ -64,6 +96,22 @@ class Interface(FLIDevice):
         scipy.misc.imsave(filename, self.last_image)
    
     #--------------------------------------------------------------------------
+    # Query Functions
+    #--------------------------------------------------------------------------
+    def get_CC_temp(self):
+        "gets the Camera cooler's Cold-side (also CCD) temperature in degrees Celcius"
+        return 0.0
+    
+    def get_CH_temp(self):
+        "gets the Camera cooler's Hot-side temperature in degrees Celcius"
+        return 0.0
+        
+    def get_CC_power(self):
+        "gets the Camera cooler's power in watts"
+        return 0.0
+    
+    def get_info(self):
+        return OrderedDict()
       
 
 #------------------------------------------------------------------------------

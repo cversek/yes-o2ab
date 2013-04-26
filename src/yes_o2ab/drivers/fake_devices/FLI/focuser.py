@@ -25,16 +25,14 @@ class Interface(FLIDevice):
     def get_position(self):
         "gets the current focuser position in steps"
         self._init_driver()
-        return self._driver.get_stepper_position()
+        return 0
 
     def goto_home(self):
         "resests the device to the home position, pos=0"
         self._init_driver()
-        self._driver.home_focuser()
 
-    def step(self, steps):
+    def step(self, steps, blocking = True):
         self.initialize()
-        self._driver.step_motor(steps)
         
     #--------------------------------------------------------------------------
       

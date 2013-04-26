@@ -13,7 +13,7 @@ SPEED_DEFAULT    = 1
 ACC_DEFAULT      = 1
 ###############################################################################
 class Interface(Model):
-    def __init__(self, channel, driver):
+    def __init__(self, channel, driver, **kwargs):
         self.channel = channel
         self._driver = driver 
         self._initialized = False   
@@ -29,14 +29,9 @@ class Interface(Model):
         return (True, "")  
             
     def identify(self):
-        buff = ["New Focus Intelligent Pico Motor 8354"]
+        buff = ["(!!! DEBUGGING FAKE) New Focus Intelligent Pico Motor 8354"]
         buff.append("\taddr = %d" % self._driver.addr)
-        buff.append("\tchannel = %s" % self.channel)        
-        if self._initialized:
-            buff.append("\tmod_type = %d" % self._stepper_mod.mod_type)
-            buff.append("\tmod_version = %d" % self._stepper_mod.mod_version)        
-        else:
-            buff.append("(not initialized)")        
+        buff.append("\tchannel = %s" % self.channel)          
         return "\n".join(buff)
 
     #--------------------------------------------------------------------------
@@ -75,8 +70,8 @@ class Interface(Model):
 
 #------------------------------------------------------------------------------
 # INTERFACE CONFIGURATOR         
-def get_interface(channel, driver):
-    return Interface(channel=channel, driver=driver)
+def get_interface(channel, driver, **kwargs):
+    return Interface(channel=channel, driver=driver, **kwargs)
     
 ###############################################################################
 # TEST CODE

@@ -29,7 +29,7 @@ def constrain(val, min_val, max_val):
 
 ###############################################################################
 class Interface(Model):
-    def __init__(self, port, addr, baudrate):
+    def __init__(self, port, addr, baudrate, **kwargs):
         self.addr = addr        
         self._ldcn = Network(port=port, baudrate=baudrate)
         self._stepper_mod = None
@@ -40,28 +40,21 @@ class Interface(Model):
     def initialize(self):
         """ """
         if not self._initialized:
-            self._ldcn.initialize()
-            self._stepper_mod = self._ldcn.getModule(self.addr)
+            pass
+            #self._ldcn.initialize()
+            #self._stepper_mod = self._ldcn.getModule(self.addr)
         self._initialized = True
         
     def test(self):
         return (True, "")  
             
     def identify(self):
-        buff = [IDN]
-        buff.append("\taddr = %d" %  self.addr)
-        if self._initialized:
-            buff.append("\tmod_type = %d" % self._stepper_mod.mod_type)
-            buff.append("\tmod_version = %d" % self._stepper_mod.mod_version)        
-        else:
-            buff.append("\t(not initialized)")        
-        return "\n".join(buff)
-
+        return "( !!!DEBUGGING FAKE) picomotor driver"
     #--------------------------------------------------------------------------
     # Implementation of the Picomotor Motion Interface
     def get_position(self):
         self.initialize()
-        return self._stepper_mod.getPosition()
+        
 
     def goto_position(self,
                       channel,
@@ -86,19 +79,12 @@ class Interface(Model):
             speed_factor = 8.0
         speed = int(speed/speed_factor)
         speed_factor = int(speed_factor)
-        self._stepper_mod.setParams(speed_factor='%dx' % speed_factor)
-        #self._stepper_mod.resetPosition()
-        self._stepper_mod.enableDriver()
-        self._stepper_mod.loadTrajectory(pos=pos,speed=speed,acc=acc)
 
     def stop_motion(self):
-        self._stepper_mod.stopMotor(stop_mode = 'abrupt')
+        pass
     
     def wait(self, polling_interval = DEFAULT_POLLING_INTERVAL):
-        while True:
-            if not self._stepper_mod.isMotorMoving():
-                break
-            time.sleep(polling_interval)
+        pass
             
         
     #--------------------------------------------------------------------------
@@ -109,10 +95,10 @@ class Interface(Model):
 
 #------------------------------------------------------------------------------
 # INTERFACE CONFIGURATOR         
-def get_interface(port, addr, baudrate = DEFAULT_BAUDRATE):
+def get_interface(port, addr, baudrate = DEFAULT_BAUDRATE, **kwargs):
     addr     = int(addr)    
     baudrate = int(baudrate)
-    return Interface(port=port, addr=addr, baudrate=baudrate)
+    return Interface(port=port, addr=addr, baudrate=baudrate, **kwargs)
     
 ###############################################################################
 # TEST CODE

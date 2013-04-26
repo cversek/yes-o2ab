@@ -17,6 +17,8 @@ class Interface(FLIDevice):
     def __init__(self, serial_number, **kwargs):
         self.kwargs = kwargs
         self._position = 0
+        FLIDevice.__init__(self, serial_number=serial_number)
+        
     def _init_device(self):
         self.set_position(0)
     #--------------------------------------------------------------------------

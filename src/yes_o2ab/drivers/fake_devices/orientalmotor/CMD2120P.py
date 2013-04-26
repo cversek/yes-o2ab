@@ -55,7 +55,7 @@ class Interface(Model):
                                        self._home_sensor_true,
                                        self._slit_sensor_true,
                                       )
-        self.motor_controller._send_command(cmd)
+        #self.motor_controller._send_command(cmd)
         
     def configure_limit_sensors(self,
                                 sensor_mode,
@@ -87,7 +87,7 @@ class Interface(Model):
             
     def identify(self):
         mc_idn = self.motor_controller.identify()
-        idn = "motor driver CMD2120P on axis %d of controller: %s" % (self.axis, mc_idn)
+        idn = "(!!! DEBUGGING FAKE) motor driver CMD2120P on axis %d of controller: %s" % (self.axis, mc_idn)
         return idn
         
     def shutdown(self):

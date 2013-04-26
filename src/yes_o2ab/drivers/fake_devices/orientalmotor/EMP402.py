@@ -32,8 +32,8 @@ def constrain(val, min_val, max_val):
 ###############################################################################
 class Interface(Model, SerialCommunicationsMixIn):
     def __init__(self, port):
-        #initialize GPIB communication
-        SerialCommunicationsMixIn.__init__(self, port, delay = DELAY)
+        pass
+        #SerialCommunicationsMixIn.__init__(self, port, delay = DELAY)
 #    def __del__(self):
 #        self.shutdown()
     #--------------------------------------------------------------------------
@@ -46,44 +46,19 @@ class Interface(Model, SerialCommunicationsMixIn):
         return (True, "")  
             
     def identify(self):
-        idn = "EMP402 on port: %s" % self.ser.port
+        idn = "(!!! DEBUGGING FAKE) EMP402 on port: (no port)" 
         return idn
 
     # Motor interface
     def get_position(self, axis):
-        pattern = r"PC[12]\s+[=]\s+([+-]?\d+)"
-        resp = self._exchange_command("R%d" % axis)
-        m = re.search(pattern, resp)
-        if not m is None:
-            return int(m.group(1))
-        else:
-            raise IOError, "could not verify response"
+        return 0
             
     # Motor interface
     def get_limit_state(self, axis):
-        pattern1 = r"CWLS[12]\s+[=]\s+([01])"
-        pattern2 = r"CCWLS[12]\s+[=]\s+([01])"
-        resp = self._exchange_command("R%d" % axis)
-        m = re.search(pattern1, resp)
-        if not m is None:
-            CW =  int(m.group(1))
-        else:
-            raise IOError, "could not verify response"
-        m = re.search(pattern2, resp)
-        if not m is None:
-            CCW = int(m.group(1))
-        else:
-            raise IOError, "could not verify response"
-        return (CW,CCW)
+        return (0,0)
         
     def is_moving(self):
-        pattern = r"Move\s+[=]\s+([01])"
-        resp = self._exchange_command("R")
-        m = re.search(pattern, resp)
-        if not m is None:
-            return bool(int(m.group(1)))
-        else:
-            raise IOError, "could not verify response"
+        return False
     
     def wait_on_move(self):
         while self.is_moving():
@@ -92,7 +67,7 @@ class Interface(Model, SerialCommunicationsMixIn):
             
     def set_home(self, axis):
         """clears current position (set it to zero)"""
-        self._send_command("RTNCR%d" % axis)
+        pass
 
     def goto_position(self,
                       axis,
@@ -100,15 +75,7 @@ class Interface(Model, SerialCommunicationsMixIn):
                       start_speed     = SPEED_DEFAULT,
                       operating_speed = SPEED_DEFAULT,
                      ):
-        self._send_command("PULSE%d 1" % axis)                     #p. 77, set pulse output mode to "1-pulse mode"
-        start_speed = constrain(start_speed, SPEED_MIN, SPEED_MAX)         
-        self._send_command("VS%d %d" % (axis,start_speed))         #p. 85, start speed Hz 
-        operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)         
-        self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz    
-        self._send_command("H%d +" % axis)                         #p. 70, set direction flag
-        self._send_command("D%d %d" % (axis, pos))                 #p. 64, steps to rotate
-        #start the motion, absolute
-        self._send_command("ABS%d" % axis)
+        pass
                 
     
     def rotate(self,
@@ -117,15 +84,7 @@ class Interface(Model, SerialCommunicationsMixIn):
                start_speed     = SPEED_DEFAULT,
                operating_speed = SPEED_DEFAULT,
               ):
-        self._send_command("PULSE%d 1" % (axis,))               #p. 77, set pulse output mode to "1-pulse mode"
-        start_speed = constrain(start_speed, SPEED_MIN, SPEED_MAX)         
-        self._send_command("VS%d %d" % (axis,start_speed))      #p. 85, start speed Hz 
-        operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)         
-        self._send_command("V%d %d" % (axis,operating_speed))   #p. 85, operating speed Hz    
-        self._send_command("H%d +" % (axis,))                   #p. 70, set direction flag
-        self._send_command("D%d %d" % (axis, steps))            #p. 64, steps to rotate
-        #start the motion, incremental
-        self._send_command("INC%d" % (axis,))
+        pass
         
     def seek_home(self,
                   axis,
@@ -135,35 +94,15 @@ class Interface(Model, SerialCommunicationsMixIn):
                   start_speed,
                   operating_speed,
                  ):
-        #sensor mode configuration
-        if sensor_mode == 2:
-            self._send_command("SEN%d 2" % (axis,))                #p. 81, set 2-sensor mode
-        elif sensor_mode == 3:
-            self._send_command("SEN%d 3" % (axis,))                #p. 81, set 3-sensor mode
-        #ignore both TIM and SLIT inputs
-        self._send_command("TIM%d 0,0" % (axis,))                  #p. 82, subsensor config
-        #motion configuration
-        self._send_command("OFS%d %d" % (axis,offset))             #p. 76, number of offset steps
-        if   direction == "CW":
-            self._send_command("H%d +" % (axis,))                  #p. 70, set direction flag
-        elif direction == "CCW":
-            self._send_command("H%d -" % (axis,))
-        self._send_command("PULSE%d 1" % (axis,))                  #p. 77, set pulse output mode to "1-pulse mode"
-        start_speed = constrain(start_speed, SPEED_MIN, SPEED_MAX)         
-        self._send_command("VS%d %d" % (axis,start_speed))         #p. 85, start speed Hz 
-        operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)         
-        self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz    
-        #start the mechanical home seeking
-        self._send_command("MHOME%d" % axis)        
+        pass
     
     def stop(self, axis = None):
         if axis is None:
-            self._send_command("S1")
-            self._send_command("S2")
+            pass
         elif axis==1:
-            self._send_command("S1")
+            pass
         elif axis==2:
-            self._send_command("S2")
+            pass
         else:
             raise ValueError("'axis' must be either 1 or 2")
      
@@ -172,7 +111,7 @@ class Interface(Model, SerialCommunicationsMixIn):
         assert 1 <= chan <= 6
         state = int(bool(state))
         cmd = "OUT %d,%d" % (chan,state)
-        resp = self._exchange_command(cmd)
+        #do nothing
             
     #Cleanup
     def shutdown(self):
@@ -184,32 +123,12 @@ class Interface(Model, SerialCommunicationsMixIn):
         self._send(cmd)
         
     def _exchange_command(self, cmd):
-        self.ser.flushInput()  #ignore crap in the buffer
-        self._send(cmd)
-        success, buff = self._read_until_prompt()
-        #print buff
-        if not success:
-            raise IOError, "could not verify command: %s" % cmd
-        return "".join(buff)
+        return ""
 
     def _read_until_prompt(self):
-        buff = []        
-        while True:
-            line = self._read(strip_EOL = False)
-            if line == "":
-                return (False, buff)
-            buff.append(line)
-            #check for prompt            
-            m = PROMPT_REGEX.match(line)
-            if not m is None:
-                return (True, buff)
-            #check for syntax error
-            m = SYNTAX_ERROR_REGEX.match(line)
-            if not m is None:
-                raise ValueError, "bad command syntax"            
- 
+        return (False, "")
+          
     def _reset(self):
-        self._send_command("RESET")
         time.sleep(RESET_SLEEP_TIME)
 
     #--------------------------------------------------------------------------

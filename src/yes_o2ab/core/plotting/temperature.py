@@ -11,7 +11,7 @@ class TemperaturePlot(MultiPlot):
     """
     def __init__(self,
                  title      = 'Thermal Monitoring',
-                 xlabel     = r'Time (hours)',
+                 xlabel     = r'Time (minutes)',
                  ylabel     = r'Temperature $^{\circ}$C',
                  styles     = ['r-','g-','b-','c-','y-','m-','k-','r--','g--','b--','c--','y--','m--','k--'],
                  **kwargs

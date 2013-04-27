@@ -39,7 +39,7 @@ DEFAULT_CONFIGURATION = OrderedDict([
     #('num_flushes',1),
     ('rbi_num_flushes',0),
     ('rbi_exposure_time',500),
-    
+    ('CCD_temp_setpoint',None),
 ])
 
 SLEEP_TIME = 0.100 #seconds
@@ -80,6 +80,7 @@ class Interface(Controller):
             info = OrderedDict()
             info['timestamp'] = time.time()
             info['exception'] = exc
+            info['traceback'] = traceback.format_exc()
             self._send_event("IMAGE_CAPTURE_INITIALIZE_FAILED", info)
             return False
             
@@ -94,15 +95,18 @@ class Interface(Controller):
             if not num_captures is None:
                 num_captures = int(num_captures)
             repeat_delay = float(self.configuration['repeat_delay'])
+            temp = self.configuration['CCD_temp_setpoint']
+            if not temp is None:
+                self.set_CCD_temperature_setpoint(float(temp))
             # START LOOP -------------------------------------------------
             i = 0
             while True:
                 if  self._thread_check_stop_event() or (not num_captures is None and i >= num_captures):
-                        # END NORMALLY -----------------------------------
-                        info = OrderedDict()
-                        info['timestamp'] = time.time()
-                        self._send_event("IMAGE_CAPTURE_LOOP_STOPPED",info)
-                        return
+                    # END NORMALLY ---------------------------------------
+                    info = OrderedDict()
+                    info['timestamp'] = time.time()
+                    self._send_event("IMAGE_CAPTURE_LOOP_STOPPED",info)
+                    return
                 # CAPTURE ------------------------------------------------
                 self.do_exposure(frametype)
                 # SLEEP for a bit ----------------------------------------
@@ -120,6 +124,15 @@ class Interface(Controller):
         finally:
             # FINSIH UP --------------------------------------------------
             self.reset()
+            
+    def set_CCD_temperature_setpoint(self, temp):
+        camera    = self.devices['camera']
+        with camera._mutex: #locks the resource
+            info = OrderedDict()
+            info['timestamp']         = time.time()
+            info['CCD_temp_setpoint'] = temp
+            self._send_event("IMAGE_CAPTURE_SETTING_CCD_TEMPERATURE", info)
+            camera.set_CCD_temperature_setpoint(temp)
             
     def configure_optics(self, frametype):
         #first configure the frametype

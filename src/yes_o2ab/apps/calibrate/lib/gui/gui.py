@@ -3,10 +3,16 @@
 import os, time, datetime, signal, socket, shelve, re
 import Tkinter as tk
 import ttk
+#Standard or substitute
+OrderedDict = None
+try:
+    from collections import OrderedDict
+except ImportError:
+    from yes_o2ab.support.odict import OrderedDict
 #3rd party packages
 from PIL import Image, ImageTk, ImageOps
 import Pmw
-from numpy import arange, savetxt
+from numpy import array, arange, savetxt
 from FileDialog import SaveFileDialog
 import scipy.misc
 #Automat framework provided
@@ -16,9 +22,11 @@ from automat.core.gui.pmw_custom.validation  import Validator
 from automat.core.plotting.tk_embedded_plots import EmbeddedFigure
 #yes_o2ab framework provided
 from yes_o2ab.core.plotting.spectra          import RawSpectrumPlot
+from yes_o2ab.core.plotting.temperature      import TemperaturePlot
 #application local
+from condition_fields        import ConditionFields
 from capture_settings_dialog import CaptureSettingsDialog
-from filter_select_dialog import FilterSelectDialog
+from filter_select_dialog    import FilterSelectDialog
 ###############################################################################
 # Module Constants
 from ..common_defs import FRAMETYPE_DEFAULT, EXPOSURE_TIME_DEFAULT,\
@@ -30,10 +38,14 @@ WAIT_DELAY        = 100 #milliseconds
 TEXT_BUFFER_SIZE  = 10*2**20 #ten megabytes
 SPECTRAL_FIGSIZE  = (6,5) #inches
 MAX_IMAGESIZE     = (600,500)
+TEMPERATURE_FIGSIZE  = (6,5) #inches
 LOOP_DELAY        = 100 #milliseconds
+UPDATE_CONDITIONS_LOOP_DELAY = 10*1000 #milliseconds
+CONDITIONS_BACKUP_FILENAME = os.path.expanduser("~/.yes_o2ab_calibrate_conditions.csv")
 
 FINE_ADJUST_STEP_SIZE_DEFAULT = 10 #steps
 
+BUTTON_WIDTH = 20
 CONFIRMATION_TEXT_DISPLAY_TEXT_HEIGHT = 40
 CONFIRMATION_TEXT_DISPLAY_TEXT_WIDTH  = 80
 
@@ -92,62 +104,66 @@ class GUI:
         left_panel = tk.Frame(win)
         #capture controls
         tk.Label(left_panel, text="Capture Controls:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
-        self.change_capture_settings_button = tk.Button(left_panel,text='Change Settings',command = self.change_capture_settings)
-        self.change_capture_settings_button.pack(side='top',fill='x', anchor="sw")
+        self.change_capture_settings_button = tk.Button(left_panel,
+                                                        text    = 'Change Settings',
+                                                        command = self.change_capture_settings, 
+                                                        width   = BUTTON_WIDTH)
+        self.change_capture_settings_button.pack(side='top', anchor="sw")
         self._capture_mode = None
-        self.capture_once_button = tk.Button(left_panel,text='Run Once',command = self.capture_once)
-        self.capture_once_button.pack(side='top',fill='x', anchor="nw")
-        self.capture_on_adjust_button = tk.Button(left_panel,text='Run on Adjust',command = self.capture_on_adjust)
-        self.capture_on_adjust_button.pack(side='top',fill='x', anchor="nw")
-        self.capture_continually_button  = tk.Button(left_panel,text='Run Continually',command = self.capture_continually)
-        self.capture_continually_button.pack(side='top',fill='x', anchor="nw")
-        self.stop_button = tk.Button(left_panel,text='Stop',command = self.stop, state='disabled')
-        self.stop_button.pack(side='top',fill='x', anchor="nw")
+        self.capture_once_button = tk.Button(left_panel,text='Run Once',command = self.capture_once, width = BUTTON_WIDTH)
+        self.capture_once_button.pack(side='top', anchor="nw")
+        self.capture_on_adjust_button = tk.Button(left_panel,text='Run on Adjust',command = self.capture_on_adjust, width = BUTTON_WIDTH)
+        self.capture_on_adjust_button.pack(side='top', anchor="nw")
+        self.capture_continually_button  = tk.Button(left_panel,text='Run Continually',command = self.capture_continually, width = BUTTON_WIDTH)
+        self.capture_continually_button.pack(side='top', anchor="nw")
+        self.stop_button = tk.Button(left_panel,text='Stop',command = self.stop, state='disabled', width = BUTTON_WIDTH)
+        self.stop_button.pack(side='top', anchor="nw")
         
         #optics controls
         tk.Label(left_panel, pady = 10).pack(side='top',fill='x', anchor="nw")
         tk.Label(left_panel, text="Optics Controls:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
-        self.flatfield_field = Pmw.EntryField(left_panel,
-                                              labelpos='w',
-                                              label_text=" flatfield:",
-                                              label_font = FIELD_LABEL_FONT,
-                                              entry_width=8,
-                                              entry_state='readonly',
-                                              )
-        self.band_field = Pmw.EntryField(left_panel,
-                                         labelpos='w',
-                                         label_text="             band:",
-                                         label_font = FIELD_LABEL_FONT,
-                                         entry_width=9,
-                                         entry_state='readonly',
-                                        )
-        self.band_field.pack(side='top', anchor="w", expand='no')
-        self.filter_B_field = Pmw.EntryField(left_panel,
-                                         labelpos='w',
-                                         label_text="(B)and-pass filt.:",
-                                         label_font = FIELD_LABEL_FONT,
-                                         entry_width=9,
-                                         entry_state='readonly',
-                                        )
-        self.filter_B_field.pack(side='top', anchor="w", expand='no')
-        self.filter_A_field = Pmw.EntryField(left_panel,
-                                         labelpos='w',
-                                         label_text="(A)uxiliary filt.:",
-                                         label_font = FIELD_LABEL_FONT,
-                                         entry_width=9,
-                                         entry_state='readonly',
-                                        )
-        self.filter_A_field.pack(side='top', anchor="w", expand='no')
-        self.filter_position_field = Pmw.EntryField(left_panel,
-                                         labelpos='w',
-                                         label_text="filt. pos. (5B+A):",
-                                         label_font = FIELD_LABEL_FONT,
-                                         entry_width=9,
-                                         entry_state='readonly',
-                                        )
-        self.filter_position_field.pack(side='top', anchor="w", expand='no')
-        self.filter_select_button = tk.Button(left_panel,text='Band/Filter Select',command = self.filter_select)
-        self.filter_select_button.pack(side='top',fill='x', anchor="nw")
+        OPTICS_FIELDS_ENTRY_WIDTH = 9
+        self.optics_fields = OrderedDict()
+        self.optics_fields['flatfield'] = Pmw.EntryField(left_panel,
+                                                         labelpos    = 'w',
+                                                         label_text  = "        flatfield:",
+                                                         label_font  = FIELD_LABEL_FONT,
+                                                         entry_width = OPTICS_FIELDS_ENTRY_WIDTH,
+                                                         entry_state = 'readonly',
+                                                         )
+        self.optics_fields['band']      = Pmw.EntryField(left_panel,
+                                                         labelpos    = 'w',
+                                                         label_text  = "             band:",
+                                                         label_font  = FIELD_LABEL_FONT,
+                                                         entry_width = OPTICS_FIELDS_ENTRY_WIDTH,
+                                                         entry_state = 'readonly',
+                                                        )
+        self.optics_fields['filter_B']  = Pmw.EntryField(left_panel,
+                                                         labelpos    = 'w',
+                                                         label_text  = "(B)and-pass filt.:",
+                                                         label_font  = FIELD_LABEL_FONT,
+                                                         entry_width = OPTICS_FIELDS_ENTRY_WIDTH,
+                                                         entry_state = 'readonly',
+                                                        )
+        self.optics_fields['filter_A']  = Pmw.EntryField(left_panel,
+                                                         labelpos    = 'w',
+                                                         label_text  = "(A)uxiliary filt.:",
+                                                         label_font  = FIELD_LABEL_FONT,
+                                                         entry_width = OPTICS_FIELDS_ENTRY_WIDTH,
+                                                         entry_state = 'readonly',
+                                                        )
+        self.optics_fields['filter_pos'] = Pmw.EntryField(left_panel,
+                                                         labelpos    = 'w',
+                                                         label_text  = "filt. pos. (5B+A):",
+                                                         label_font  = FIELD_LABEL_FONT,
+                                                         entry_width = OPTICS_FIELDS_ENTRY_WIDTH,
+                                                         entry_state = 'readonly',
+                                                        )
+        for key, widget in self.optics_fields.items():
+            widget.pack(side='top', anchor="w", expand='no')
+        
+        self.filter_select_button = tk.Button(left_panel,text='Band/Filter Select',command = self.filter_select, width = BUTTON_WIDTH)
+        self.filter_select_button.pack(side='top', anchor="nw")
         
         
         #band fine adjustment controls
@@ -185,31 +201,28 @@ class GUI:
         self.focus_adjustR_button.pack(side='left', anchor="nw")
         focus_adjust_button_frame.pack(side='top',fill='x', anchor="nw")
         self.focus_adjust_stepsize_field = Pmw.EntryField(left_panel,
-                                                          labelpos='w',
-                                                          label_text="step size:",
-                                                          label_font = FIELD_LABEL_FONT,
-                                                          value = FINE_ADJUST_STEP_SIZE_DEFAULT,
-                                                          entry_width=4,
-                                                          validate = positive_integer_validator,
+                                                          labelpos    = 'w',
+                                                          label_text  ="step size:",
+                                                          label_font  = FIELD_LABEL_FONT,
+                                                          value       = FINE_ADJUST_STEP_SIZE_DEFAULT,
+                                                          entry_width = 4,
+                                                          validate    = positive_integer_validator,
                                                           )
         self.focus_adjust_stepsize_field.pack(side='top', anchor="w", expand='no')
         self.focus_adjust_position_field = Pmw.EntryField(left_panel,
-                                                          labelpos='w',
-                                                          label_text=" position:",
-                                                          label_font = FIELD_LABEL_FONT,
-                                                          entry_width=8,
-                                                          entry_state='readonly',
+                                                          labelpos    = 'w',
+                                                          label_text  = " position:",
+                                                          label_font  = FIELD_LABEL_FONT,
+                                                          entry_width = 8,
+                                                          entry_state = 'readonly',
                                                           )
         self.focus_adjust_position_field.pack(side='top', anchor="w", expand='no')
         
-        #flat field
-#        flatfield_pos_frame = tk.Frame(left_panel)
-#        tk.Label(flatfield_pos_frame, text="Flat Field Pos.:", font = "Helvetica 10 bold").pack(side='top', anchor="nw")        
-#        self.flatfield_posIN_button = tk.Button(flatfield_pos_frame,text='IN',command = lambda: self.set_flatfield(True))
-#        self.flatfield_posIN_button.pack(side='left', anchor="nw")
-#        self.flatfield_posOUT_button = tk.Button(flatfield_pos_frame,text='OUT',command = lambda: self.set_flatfield(False))
-#        self.flatfield_posOUT_button.pack(side='left', anchor="nw")
-#        flatfield_pos_frame.pack(side='top',fill='x', anchor="nw")
+        #Condition Monitoring
+        tk.Label(left_panel, pady = 10).pack(side='top',fill='x', anchor="nw")
+        tk.Label(left_panel, text="Condition Monitoring:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
+        self.condition_fields = ConditionFields(left_panel)
+        self.condition_fields.pack(side='top', anchor="w", expand='no')
                           
         left_panel.pack(fill='y',expand='no',side='left', padx = 10)
         #build the middle panel - a tabbed notebook
@@ -218,8 +231,10 @@ class GUI:
         nb.pack(fill='both', expand='yes',side='right')
         tab1 = tk.Frame(nb)
         tab2 = tk.Frame(nb)
+        tab3 = tk.Frame(nb)
         nb.add(tab1, text="Raw Spectrum Display")
         nb.add(tab2, text="Raw Image Display")
+        nb.add(tab3, text="Conditions")
         #create an tk embedded figure for spectral display
         self.spectral_plot_template = RawSpectrumPlot()
         self.spectral_figure_widget = EmbeddedFigure(tab1, figsize=SPECTRAL_FIGSIZE)
@@ -233,7 +248,14 @@ class GUI:
         self.photo_label_widget.pack(side='top',fill='both', expand='yes')
         self.save_image_button = tk.Button(tab2,text='Save Image',command = self.save_image, state='disabled')
         self.save_image_button.pack(side='bottom',anchor="sw")
+        #create an tk embedded figure for temperature display
+        self.temperature_plot_template = TemperaturePlot()
+        self.temperature_figure_widget = EmbeddedFigure(tab3, figsize=TEMPERATURE_FIGSIZE)
+        self.temperature_figure_widget.pack(side='top',fill='both', expand='yes')
+        self.export_conditions_button = tk.Button(tab3,text='Export Conditions',command = self.export_conditions, state='disabled')
+        self.export_conditions_button.pack(side='bottom',anchor="sw")
         mid_panel.pack(fill='both', expand='yes',side='left')
+        
         #build the right panel
         right_panel = tk.Frame(win)
         self.text_display  = TextDisplayBox(right_panel,text_height=15, buffer_size = TEXT_BUFFER_SIZE)
@@ -255,13 +277,24 @@ class GUI:
     def launch(self):
         #run the GUI handling loop
         IgnoreKeyboardInterrupt()
+        self.flush_event_queues()
         #get metadata from devices to update the fields
         md = self.app.query_metadata()
-        self._update_fields(md)
+        self._update_optics_fields(md)
+        self._update_conditions_fields_loop()
+        self.flush_event_queues()
         #reveal the main window
         self.win.deiconify()
         self.win.mainloop()
         NoticeKeyboardInterrupt()   
+        
+    def flush_event_queues(self):
+        for handle in self.app.USED_CONTROLLERS:
+            controller = self.app.load_controller(handle)
+            #read out all pending events
+            while not controller.event_queue.empty():
+                event, info = controller.event_queue.get()
+                self.print_event(event,info)
     
     def busy(self):
         self.disable_buttons()
@@ -308,8 +341,18 @@ class GUI:
     
 
     def change_capture_settings(self):
-        self.app.print_comment("changing capture settings...")
-        self.capture_settings_dialog.activate()
+        choice = self.capture_settings_dialog.activate()
+        if choice == "OK":
+            self.app.print_comment("changing capture settings...")
+            image_capture = self.app.load_controller('image_capture')
+            temp = float(self.capture_settings_dialog.form['CCD_temp_setpoint'])
+            image_capture.set_CCD_temperature_setpoint(temp)
+            #read out all pending events
+            while not image_capture.event_queue.empty():
+                event, info = image_capture.event_queue.get()
+                self.print_event(event,info)
+            
+            
         
     def capture_once(self):
         #prevent multiple presses
@@ -320,6 +363,7 @@ class GUI:
         rbi_num_flushes   = int(self.capture_settings_dialog.form['rbi_num_flushes'])
         rbi_exposure_time = int(self.capture_settings_dialog.form['rbi_exposure_time'])
         repeat_delay      = int(self.capture_settings_dialog.form['repeat_delay'])
+        temp = float(self.capture_settings_dialog.form['CCD_temp_setpoint'])
         self.app.print_comment("Capturing image:")
         #acquire image and process into rudimentary spectrum
         self.app.print_comment("\texposing for %d milliseconds..." % (exposure_time,))
@@ -327,6 +371,7 @@ class GUI:
                                exposure_time     = exposure_time,
                                rbi_num_flushes   = rbi_num_flushes,
                                rbi_exposure_time = rbi_exposure_time,
+                               CCD_temp_setpoint = temp,
                                blocking = False)
         #self.busy()
         self.win.after(LOOP_DELAY,self._wait_on_capture_loop)
@@ -350,7 +395,7 @@ class GUI:
             #finish up
             #md = self.app.last_capture_metadata.copy()
             md = self.app.query_metadata()
-            self._update_fields(md)
+            self._update_optics_fields(md)
             #self.not_busy()
             self.capture_once_button.configure(state='normal')
             self.app.print_comment("capture completed")
@@ -433,7 +478,7 @@ class GUI:
             #finish up
             md = self.app.query_metadata()
             self.app.last_capture_metadata = md
-            self._update_fields(md)
+            self._update_optics_fields(md)
             #enable all the buttons, except the stop button
             self.capture_once_button.config(state='normal')
             self.capture_on_adjust_button.config(state='normal', bg='light gray', relief = 'raised')
@@ -449,7 +494,7 @@ class GUI:
     
     def filter_select(self):
         self.app.print_comment("Selecting filter:")
-        #self._update_fields() #FIXME does this need to be done?
+        #self._update_optics_fields() #FIXME does this need to be done?
         choice = self.filter_select_dialog.activate()
         if choice == 'OK':
             self._set_band_and_filter_pos()
@@ -561,7 +606,7 @@ class GUI:
         else:
             #finish up
             md = self.app.query_metadata()
-            self._update_fields(md)
+            self._update_optics_fields(md)
             self.not_busy()
             self.app.print_comment("finished")
             self.wait_msg_window.destroy()
@@ -615,7 +660,7 @@ class GUI:
         else:
             #finish up
             md = self.app.query_metadata()
-            self._update_fields(md)
+            self._update_optics_fields(md)
             self.band_adjust_position_field.configure(entry_fg = "black")
             self.not_busy()
             self.app.print_comment("finished")
@@ -653,7 +698,7 @@ class GUI:
             self.win.after(LOOP_DELAY,self._wait_on_focus_adjust_loop)
         else:
             md = self.app.query_metadata()
-            self._update_fields(md)
+            self._update_optics_fields(md)
             self.focus_adjust_position_field.configure(entry_fg = "black")
             self.not_busy()
             self.app.print_comment("finished")
@@ -708,6 +753,24 @@ class GUI:
             img = scipy.misc.toimage(I,mode='I') #convert  to 16-bit greyscale
             img.save(filename)
             
+    def export_conditions(self):
+        self.app.print_comment("Exporting conditions data...")
+        dt_now = datetime.datetime.utcnow()
+        dt_now_str = dt_now.strftime("%Y-%m-%d-%H_%m_%S")
+        #get some metadata for title
+        default_filename = "%s_conditions.csv" % (dt_now_str,) 
+        fdlg = SaveFileDialog(self.win,title="Save Conditions Data")
+        userdata_path = self.app.config['paths']['data_dir']    
+
+        filename = fdlg.go(dir_or_file = userdata_path, 
+                           pattern="*.csv", 
+                           default=default_filename, 
+                           key = None
+                          )
+        if filename:
+            self.app.export_conditions(filename)
+        self.app.print_comment("finished")
+            
     def replot_spectrum(self):
         self.spectral_plot_template._has_been_plotted = False
         S = self.app.last_spectrum
@@ -749,6 +812,7 @@ class GUI:
         self.last_image_display = disp_img
         self.last_photo = photo = ImageTk.PhotoImage(disp_img) #keep the reference
         self.photo_label_widget.config(image = photo)          #update the widget
+        
     
     def _update_filter_status(self, md):
         if md is None:
@@ -756,23 +820,25 @@ class GUI:
             self.filter_B_field.setvalue("(changing)")
             self.filter_A_field.setvalue("(changing)")
         else:
-            self.filter_position_field.setvalue(str(md['filt_pos']))
+            self.optics_fields['filter_pos'].setvalue(str(md['filt_pos']))
             B = md['filt_B_num']
             A = md['filt_A_num']
             B_type = md['filt_B_type']
             A_type = md['filt_A_type']
             B_label = "%d, \"%s\"" % (B,B_type)
             A_label = "%d, \"%s\"" % (A,A_type)
-            self.filter_B_field.setvalue(B_label)
-            self.filter_A_field.setvalue(A_label)
+            self.optics_fields['filter_B'].setvalue(B_label)
+            self.optics_fields['filter_A'].setvalue(A_label)
             self.filter_select_dialog.varB.set(B)
             self.filter_select_dialog.varA.set(A)
         
         
-    def _update_fields(self, md):
+    def _update_optics_fields(self, md):
         self._update_filter_status(md)
+        flatfield_state = md['flatfield_state']
+        self.optics_fields['flatfield'].setvalue(str(flatfield_state))
         band = md['band']
-        self.band_field.setvalue(band)
+        self.optics_fields['band'].setvalue(band)
         if band in ['O2A','H2O']:
             self.filter_select_dialog.select_band(band)
         band_adjust_pos = md['band_adjust_pos']
@@ -781,6 +847,55 @@ class GUI:
         self.band_adjust_position_field.setvalue(str(band_adjust_pos))
         focuser_pos = md['focuser_pos']
         self.focus_adjust_position_field.setvalue(str(focuser_pos))
+    
+    def _update_conditions_fields_loop(self):
+        condition_monitor = self.app.load_controller('condition_monitor')
+        sample = condition_monitor.acquire_sample()
+        self.app.conditions_sample_times.append(time.time())
+        dt_now = datetime.datetime.utcnow()
+        dt_now_str = dt_now.strftime("%Y-%m-%d-%H:%m:%S")
+        #read out all pending events
+        while not condition_monitor.event_queue.empty():
+            event, info = condition_monitor.event_queue.get()
+            self.print_event(event,info)
+        #update all the widgets
+        self.condition_fields.sample_datetime_field.setvalue(dt_now_str)
+        if not sample is None: #could fail on mutex lockout
+            for key, widget in self.condition_fields.fields.items():
+                val = sample[key]
+                data_list = self.app.conditions_Ydata.get(key,[])
+                data_list.append(val)
+                self.app.conditions_Ydata[key] = data_list
+                val_str = "%0.2f" % val
+                widget.setvalue(val_str)
+        #now update the plot
+        self._update_conditions_plot()
+        self.app.export_conditions(CONDITIONS_BACKUP_FILENAME) #write a backup
+        self.export_conditions_button.config(state='normal') #data can now be exported
+        #reschedule loop
+        self.win.after(UPDATE_CONDITIONS_LOOP_DELAY, self._update_conditions_fields_loop)
+    
+    def _update_conditions_plot(self):
+        figure        = self.temperature_figure_widget.get_figure()        
+        plot_template = self.temperature_plot_template
+        #get some metadata for plot formatting
+        #title     = "Raw Spectrum (%s, %d ms)"
+        #self.spectral_plot_template.configure(title=title)
+        self.app.print_comment("Replotting the temperature graph.")
+        figure.clear()
+        labels = []
+        Xs = []
+        Ys = []
+        X = array(self.app.conditions_sample_times)
+        X -= X[0] #make relative to start
+        X /= 60.0 #convert to minutes
+        for key, widget in self.condition_fields.fields.items():
+            labels.append(key)
+            Y = self.app.conditions_Ydata.get(key,[])
+            Xs.append(X)
+            Ys.append(Y)
+        plot_template.plot(Xs, Ys, labels=labels, figure=figure)
+        self.temperature_figure_widget.update()
 
     def print_to_text_display(self, text, eol='\n'):
         self.text_display.print_text(text, eol=eol) 

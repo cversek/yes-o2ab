@@ -1,6 +1,11 @@
 ###############################################################################
 #Dependencies
 #standard python
+OrderedDict = None
+try:
+    from collections import OrderedDict
+except ImportError:
+    from yes_o2ab.support.odict import OrderedDict
 #Automat framework provided
 from automat.core.hwcontrol.devices.instruments import Model
 #other in-house packages
@@ -112,6 +117,14 @@ class Interface(FLIDevice):
     
     def get_info(self):
         return OrderedDict()
+        
+    #--------------------------------------------------------------------------
+    # Command Functions
+    #--------------------------------------------------------------------------
+    def set_CCD_temperature_setpoint(self, temp):
+        "gets the Camera cooler's Cold-side (also CCD) temperature in degrees Celcius"
+        pass
+        #self._driver.set_temperature(temp)
       
 
 #------------------------------------------------------------------------------

@@ -8,7 +8,7 @@ from automat.core.gui.pmw_custom.entry_form import EntryForm
 TITLE = "Change Capture Settings"
 from ..common_defs import FRAMETYPE_DEFAULT, EXPOSURE_TIME_DEFAULT,\
     RBI_NUM_FLUSHES_DEFAULT, RBI_EXPOSURE_TIME_DEFAULT, REPEAT_DELAY_DEFAULT,\
-    FIELD_LABEL_FONT
+    CCD_TEMP_SETPOINT_DEFAULT, FIELD_LABEL_FONT
 ###############################################################################
 class CaptureSettingsDialog(Pmw.Dialog):
     def __init__(self,
@@ -38,7 +38,7 @@ class CaptureSettingsDialog(Pmw.Dialog):
         form = EntryForm(frame)
         form.new_field('exposure_time',
                        labelpos    = 'w',
-                       label_text  = "   Exposure Time (ms):",
+                       label_text  = "        Exposure Time (ms):",
                        label_font  = FIELD_LABEL_FONT,
                        entry_width = 6,
                        value       = EXPOSURE_TIME_DEFAULT,
@@ -46,7 +46,7 @@ class CaptureSettingsDialog(Pmw.Dialog):
                       )
         form.new_field('rbi_num_flushes',
                        labelpos    = 'w',
-                       label_text  = "Number of RBI Flushes:",
+                       label_text  = "     Number of RBI Flushes:",
                        label_font  = FIELD_LABEL_FONT,
                        entry_width = 6,
                        value       = RBI_NUM_FLUSHES_DEFAULT,
@@ -54,7 +54,7 @@ class CaptureSettingsDialog(Pmw.Dialog):
                       )
         form.new_field('rbi_exposure_time',
                        labelpos    = 'w',
-                       label_text  = "  RBI Flood Time (ms):",
+                       label_text  = "       RBI Flood Time (ms):",
                        label_font  = FIELD_LABEL_FONT,
                        entry_width = 6,
                        value       = RBI_EXPOSURE_TIME_DEFAULT,
@@ -62,11 +62,19 @@ class CaptureSettingsDialog(Pmw.Dialog):
                       )
         form.new_field('repeat_delay',
                        labelpos    = 'w',
-                       label_text  = "     Repeat Delay (s):",
+                       label_text  = "          Repeat Delay (s):",
                        label_font  = FIELD_LABEL_FONT,
                        entry_width = 6,
                        value       = REPEAT_DELAY_DEFAULT,
                        validate    = Validator(_min=0,converter=int)
+                      )
+        form.new_field('CCD_temp_setpoint',
+                       labelpos    = 'w',
+                       label_text  = "CDD Temp. Setpoint (deg C):",
+                       label_font  = FIELD_LABEL_FONT,
+                       entry_width = 6,
+                       value       = CCD_TEMP_SETPOINT_DEFAULT,
+                       validate    = Validator(_min=-40,_max=25,converter=int)
                       )
         form.pack(expand='yes', fill='both')
       

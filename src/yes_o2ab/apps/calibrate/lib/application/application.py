@@ -13,7 +13,8 @@ from automat.core.hwcontrol.config.configuration import Configuration
 #from automat.services.configurator import ConfiguratorService
 #yes_o2ab framework provided
 import yes_o2ab.pkg_info
-from yes_o2ab.core.data_processing.spectrum_dataset import SpectrumDataSet
+from yes_o2ab.core.data_processing.spectrum_dataset   import SpectrumDataSet
+from yes_o2ab.core.data_processing.conditions_dataset import ConditionsDataSet
 #application local
 from   errors import ConfigurationError, DeviceError
 ###############################################################################
@@ -27,16 +28,9 @@ YES O2AB Calibrate %(version)s
 
 #Common Definitions
 from ..common_defs import FRAMETYPE_DEFAULT, EXPOSURE_TIME_DEFAULT,\
-    RBI_NUM_FLUSHES_DEFAULT, RBI_EXPOSURE_TIME_DEFAULT, REPEAT_DELAY_DEFAULT
+    RBI_NUM_FLUSHES_DEFAULT, RBI_EXPOSURE_TIME_DEFAULT, REPEAT_DELAY_DEFAULT,\
+    CCD_TEMP_SETPOINT_DEFAULT
     
-USED_CONTROLLERS = [
-                    'image_capture',
-                    'condition_monitor',
-                    'band_switcher',
-                    'filter_switcher', 
-                    'band_adjuster',  #FIXME can't be initialized with known state!
-                    'focus_adjuster',
-                   ]
 
 ###############################################################################
 #Helper Functions
@@ -54,6 +48,14 @@ def stream_print(text,
         
 ################################################################################       
 class Application:
+    USED_CONTROLLERS = [
+                        'image_capture',
+                        'condition_monitor',
+                        'band_switcher',
+                        'filter_switcher', 
+                        'band_adjuster',  #FIXME can't be initialized with known state!
+                        'focus_adjuster',
+                       ]
     def __init__(self, 
                  intro_msg       = None, 
                  skip_test       = False,
@@ -90,15 +92,18 @@ class Application:
         self.devices     = OrderedDict()
         self.controllers = OrderedDict()
         self.metadata = OrderedDict()
+        #structures for holding conditions data
+        self.conditions_Ydata = OrderedDict()
+        self.conditions_sample_times = []
         #create an event for synchronize forced shutdown
         self.abort_event = threading.Event()
         #spectral attributes
         self.last_spectrum = None
         
     def initialize(self):
-        for name in USED_CONTROLLERS:
-            self.print_comment("\tLoading and initializing controller '%s'..." % name)
-            controller = self.load_controller(name)
+        for handle in self.USED_CONTROLLERS:
+            self.print_comment("\tLoading and initializing controller '%s'..." % handle)
+            controller = self.load_controller(handle)
             controller.initialize()
             self.print_comment("\tcompleted")
         #get some configuration details
@@ -109,56 +114,7 @@ class Application:
         self.filter_A_types = [(int(slot.strip("slot")),text) for slot, text in itemsA]
         self.query_metadata()
             
-    def query_metadata(self):
-        image_capture     = self.load_controller('image_capture')
-        band_switcher     = self.load_controller('band_switcher')
-        filter_switcher   = self.load_controller('filter_switcher')
-        band_adjuster     = self.load_controller('band_adjuster')
-        focus_adjuster    = self.load_controller('focus_adjuster')
-        condition_monitor = self.load_controller('condition_monitor')
-        
-        #query controllers for state
-        band = band_switcher.query_band()
-        if band is None:
-            band = "(unknown)"
-        
-        filt_pos = filter_switcher.query_position()
-        B = filt_pos // 5
-        A = filt_pos %  5
-        
-        focuser_pos     = focus_adjuster.query_position()
-        band_adjust_pos = band_adjuster.query_position()
-        
-        sample = condition_monitor.acquire_sample()
-        
-        #write the metadata in an importance order (OrderedDict structure)
-        self.metadata['timestamp']         = time.time()
-        self.metadata['frametype']         = image_capture.configuration['frametype']
-        self.metadata['exposure_time']     = int(image_capture.configuration['exposure_time'])
-        self.metadata['rbi_num_flushes']   = int(image_capture.configuration['rbi_num_flushes'])
-        self.metadata['rbi_exposure_time'] = int(image_capture.configuration['rbi_exposure_time'])
-        self.metadata['band']              = band
-        self.metadata['filt_pos']          = filt_pos
-        self.metadata['filt_B_num']        = B
-        self.metadata['filt_A_num']        = A
-        self.metadata['filt_B_type']       = self.filter_B_types[B][1]
-        self.metadata['filt_A_type']       = self.filter_A_types[A][1]
-        self.metadata['band_adjust_pos']   = band_adjust_pos
-        self.metadata['focuser_pos']       = focuser_pos
-        self.metadata.update(sample) # a whole bunch of conditions
-        return self.metadata
-        
-    def query_filter_status(self):
-        filter_switcher   = self.load_controller('filter_switcher')
-        filt_pos = filter_switcher.query_position()
-        B = filt_pos // 5
-        A = filt_pos %  5
-        self.metadata['filt_pos']          = filt_pos
-        self.metadata['filt_B_num']        = B
-        self.metadata['filt_A_num']        = A
-        self.metadata['filt_B_type']       = self.filter_B_types[B][1]
-        self.metadata['filt_A_type']       = self.filter_A_types[A][1]
-        return self.metadata
+
     
     def setup_textbox_printer(self, textbox_printer):
         self.textbox_printer = textbox_printer
@@ -215,12 +171,70 @@ class Application:
                     warn("ignoring following error:\n---\n%s\n---" % exc, RuntimeWarning)
         except KeyError:
             pass
+        
+    def query_metadata(self):
+        image_capture      = self.load_controller('image_capture')
+        flatfield_switcher = self.load_controller('flatfield_switcher')
+        band_switcher      = self.load_controller('band_switcher')
+        filter_switcher    = self.load_controller('filter_switcher')
+        band_adjuster      = self.load_controller('band_adjuster')
+        focus_adjuster     = self.load_controller('focus_adjuster')
+        condition_monitor  = self.load_controller('condition_monitor')
+        
+        #query controllers for state
+        flatfield_state = flatfield_switcher.query_state()
+        if flatfield_state is None:
+            flatfield_state = "(unknown)"
+        band = band_switcher.query_band()
+        if band is None:
+            band = "(unknown)"
+        
+        filt_pos = filter_switcher.query_position()
+        B = filt_pos // 5
+        A = filt_pos %  5
+        
+        focuser_pos     = focus_adjuster.query_position()
+        band_adjust_pos = band_adjuster.query_position()
+        
+        sample = condition_monitor.get_last_sample()
+        
+        #write the metadata in an importance order (OrderedDict structure)
+        self.metadata['timestamp']         = time.time()
+        self.metadata['frametype']         = image_capture.configuration['frametype']
+        self.metadata['exposure_time']     = int(image_capture.configuration['exposure_time'])
+        self.metadata['rbi_num_flushes']   = int(image_capture.configuration['rbi_num_flushes'])
+        self.metadata['rbi_exposure_time'] = int(image_capture.configuration['rbi_exposure_time'])
+        self.metadata['flatfield_state']   = flatfield_state
+        self.metadata['band']              = band
+        self.metadata['filt_pos']          = filt_pos
+        self.metadata['filt_B_num']        = B
+        self.metadata['filt_A_num']        = A
+        self.metadata['filt_B_type']       = self.filter_B_types[B][1]
+        self.metadata['filt_A_type']       = self.filter_A_types[A][1]
+        self.metadata['band_adjust_pos']   = band_adjust_pos
+        self.metadata['focuser_pos']       = focuser_pos
+        if not sample is None:
+            self.metadata.update(sample) # a whole bunch of conditions
+        return self.metadata
+        
+    def query_filter_status(self):
+        filter_switcher   = self.load_controller('filter_switcher')
+        filt_pos = filter_switcher.query_position()
+        B = filt_pos // 5
+        A = filt_pos %  5
+        self.metadata['filt_pos']          = filt_pos
+        self.metadata['filt_B_num']        = B
+        self.metadata['filt_A_num']        = A
+        self.metadata['filt_B_type']       = self.filter_B_types[B][1]
+        self.metadata['filt_A_type']       = self.filter_A_types[A][1]
+        return self.metadata
     
     def acquire_image(self,
                       frametype         = FRAMETYPE_DEFAULT, 
                       exposure_time     = EXPOSURE_TIME_DEFAULT,
                       rbi_num_flushes   = RBI_NUM_FLUSHES_DEFAULT,
                       rbi_exposure_time = RBI_EXPOSURE_TIME_DEFAULT,
+                      CCD_temp_setpoint = None,
                       blocking          = True,
                       ):
         image_capture = self.load_controller('image_capture')
@@ -229,6 +243,7 @@ class Application:
                                         exposure_time     = exposure_time,
                                         rbi_num_flushes   = rbi_num_flushes,
                                         rbi_exposure_time = rbi_exposure_time,
+                                        CCD_temp_setpoint = CCD_temp_setpoint,
                                        )
         self.last_capture_metadata = self.query_metadata() #get freshest copy
         if blocking:
@@ -251,7 +266,7 @@ class Application:
         
     def export_spectrum(self, filename):
         """export the spectrum in a data format matching the file extension
-           valid extensions: .csv 
+           valid extensions: .csv, .db, .hd5
         """
         S  = self.last_spectrum
         md = self.last_capture_metadata.copy()
@@ -265,7 +280,27 @@ class Application:
         elif filename.endswith(".hd5"):
             raise NotImplementedError("HDF5 formatting is not ready, please check back later!")
         else:
-            raise ValueError("the filename extension was not recognized, it must end with: .csv or .hd5")
+            raise ValueError("the filename extension was not recognized, it must end with: .csv, .bd, or .hd5")
+        
+    def export_conditions(self, filename):
+        """export the conditions in a data format matching the file extension
+           valid extensions: .csv 
+        """
+        Ys = [Y for key, Y in self.conditions_Ydata.items()]
+        t  = np.array(self.conditions_sample_times)
+        
+        dataset = ConditionsDataSet(t,Ys)
+        
+        if   filename.endswith(".csv"):
+            dataset.to_csv_file(filename)
+        elif filename.endswith(".db"):
+            dataset.to_shelf(filename)
+        elif filename.endswith(".hd5"):
+            raise NotImplementedError("HDF5 formatting is not ready, please check back later!")
+        else:
+            raise ValueError("the filename extension was not recognized, it must end with: .csv, .db, or .hd5")
+        
+        
 
     def select_band(self, band, blocking = True):
         "run the band switcher "

@@ -109,6 +109,12 @@ class Interface(FLIDevice):
     
     def get_info(self):
         return self._driver.get_info()
+    #--------------------------------------------------------------------------
+    # Command Functions
+    #--------------------------------------------------------------------------
+    def set_CCD_temperature_setpoint(self, temp):
+        "gets the Camera cooler's Cold-side (also CCD) temperature in degrees Celcius"
+        self._driver.set_temperature(temp)
     
     #--------------------------------------------------------------------------
 

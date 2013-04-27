@@ -52,6 +52,9 @@ class Interface(Controller):
         finally:
             #ensure windings are off
             self.set_windings('off')
+            
+    def query_state(self):
+        return self.state
         
     def set_windings(self, state = 'on'):
         "set current to windings, 'state' must be 'on' or 'off'"

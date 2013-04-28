@@ -1044,10 +1044,11 @@ class GUI:
         X -= X[0] #make relative to start
         X /= 60.0 #convert to minutes
         for key, widget in self.condition_fields.fields.items():
-            labels.append(key)
-            Y = self.app.conditions_Ydata.get(key,[])
-            Xs.append(X)
-            Ys.append(Y)
+            if key.endswith('_temp'):
+                labels.append(key[:-len('_temp')]) #peel off the '_temp'
+                Y = self.app.conditions_Ydata.get(key,[])
+                Xs.append(X)
+                Ys.append(Y)
         plot_template.plot(Xs, Ys, labels=labels, figure=figure)
         self.temperature_figure_widget.update()
 

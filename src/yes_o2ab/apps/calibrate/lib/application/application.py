@@ -32,7 +32,7 @@ from ..common_defs import FRAMETYPE_DEFAULT, EXPOSURE_TIME_DEFAULT,\
     RBI_NUM_FLUSHES_DEFAULT, RBI_EXPOSURE_TIME_DEFAULT, REPEAT_DELAY_DEFAULT,\
     CCD_TEMP_SETPOINT_DEFAULT
     
-
+FOCUSER_CENTER_POS = 3500
 ###############################################################################
 #Helper Functions
 def stream_print(text, 
@@ -415,3 +415,9 @@ class Application:
             focus_adjuster.run()
         else:
             focus_adjuster.start() #run as seperate thread
+    
+    def center_focus(self, blocking = True):
+        focus_adjuster = self.load_controller('focus_adjuster')
+        focuser_pos    = focus_adjuster.query_position()
+        step = FOCUSER_CENTER_POS - focuser_pos
+        self.adjust_focus(step,blocking=blocking)

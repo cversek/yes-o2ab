@@ -199,11 +199,14 @@ class GUI:
         
         #focus adjustment controls
         focus_adjust_button_frame = tk.Frame(left_panel)
-        tk.Label(focus_adjust_button_frame, text="Focus Adjust:", font = SUBHEADING_LABEL_FONT).pack(side='top', anchor="nw")        
+        tk.Label(focus_adjust_button_frame, text="Focus Adjust:", font = SUBHEADING_LABEL_FONT).pack(side='top', anchor="nw")   
+        self.focus_adjust_goto_center_button = tk.Button(focus_adjust_button_frame,text='Goto Center',command = self.center_focus, width = BUTTON_WIDTH)
+        self.focus_adjust_goto_center_button.pack(side='top',anchor='nw')     
         self.focus_adjustL_button = tk.Button(focus_adjust_button_frame,text='<--',command = lambda: self.focus_adjust('-1'))
         self.focus_adjustL_button.pack(side='left', anchor="nw")
         self.focus_adjustR_button = tk.Button(focus_adjust_button_frame,text='-->',command = lambda: self.focus_adjust('+1'))
         self.focus_adjustR_button.pack(side='left', anchor="nw")
+        
         focus_adjust_button_frame.pack(side='top',fill='x', anchor="nw")
         self.focus_adjust_stepsize_field = Pmw.EntryField(focus_adjust_button_frame,
                                                           labelpos    = 'e',
@@ -704,6 +707,11 @@ class GUI:
         self.focus_adjust_position_field.configure(entry_fg = "dark gray")
         self.busy()
         self.app.adjust_focus(step, blocking = False) #don't block
+        self._wait_on_focus_adjust_loop()
+    
+    def center_focus(self):
+        self.app.print_comment("Centering the focus.")
+        self.app.center_focus(blocking = False)
         self._wait_on_focus_adjust_loop()
         
     def _wait_on_focus_adjust_loop(self):

@@ -2,6 +2,7 @@
 #Standard Python
 import os, sys, time, datetime, Queue, threading
 from warnings import warn
+from Queue import Queue
 #3rd party
 import numpy as np
 try:
@@ -95,16 +96,19 @@ class Application:
         #structures for holding conditions data
         self.conditions_Ydata = OrderedDict()
         self.conditions_sample_times = []
-        #create an event for synchronize forced shutdown
+        #create thread initeraction objects
+        self.event_queue = Queue()
         self.abort_event = threading.Event()
+        #self.stop_event  = threading.Event()
         #spectral attributes
-        self.last_spectrum = None
+        self.last_raw_spectrum           = None
+        self.background_spectrum_dataset = None
         
     def initialize(self):
         for handle in self.USED_CONTROLLERS:
             self.print_comment("\tLoading and initializing controller '%s'..." % handle)
             controller = self.load_controller(handle)
-            controller.initialize()
+            controller.initialize(event_queue = self.event_queue, abort_event = self.abort_event)
             self.print_comment("\tcompleted")
         #get some configuration details
         filter_wheel = self.load_device('filter_wheel')
@@ -114,7 +118,15 @@ class Application:
         self.filter_A_types = [(int(slot.strip("slot")),text) for slot, text in itemsA]
         self.query_metadata()
             
-
+    def abort_controllers(self):
+        self.print_comment("ABORTING ALL CONTROLLERS!" )
+        self.abort_event.set()
+        for handle in self.USED_CONTROLLERS:
+            self.print_comment("\tJoining controller '%s'..." % handle)
+            controller = self.load_controller(handle)
+            if controller.thread_isAlive():
+                controller.join()
+            self.print_comment("\tcompleted")
     
     def setup_textbox_printer(self, textbox_printer):
         self.textbox_printer = textbox_printer
@@ -252,7 +264,8 @@ class Application:
         else:
             image_capture.start() #this should not block
             
-    def compute_spectrum(self, I = None):
+            
+    def compute_raw_spectrum(self, I = None):
         image_capture = self.load_controller('image_capture')
         if I is None:
             I = image_capture.last_image
@@ -260,18 +273,76 @@ class Application:
         if not I is None:
             S = I.sum(axis=0)
         #cache the last spectrum and image
-        self.last_image = I
-        self.last_spectrum = S
+        self.last_image    = I
+        self.last_raw_spectrum = S
         return S
+    
+    def get_last_image(self):
+        return self.last_image
+            
+    def get_raw_spectrum(self):
+        return self.last_raw_spectrum
         
-    def export_spectrum(self, filename):
+    def get_background_spectrum(self):
+        B = None
+        if self.background_spectrum_dataset:
+            #try loading corrected data first
+            B = self.background_spectrum_dataset.get('corrected_intensity')
+            if B is None: #default to raw for old file formats
+                raise Warning("'corrected_intensity' field not found, likely using an old format, defaulting to 'raw_intensity' field")
+            B = self.background_spectrum_dataset.get('raw_intensity')
+        return B
+        
+    def export_raw_spectrum(self, filename):
         """export the spectrum in a data format matching the file extension
            valid extensions: .csv, .db, .hd5
         """
-        S  = self.last_spectrum
+        S  = self.get_raw_spectrum()
         md = self.last_capture_metadata.copy()
-        
+
         spectrum_dataset = SpectrumDataSet(S,metadata=md)
+        if   filename.endswith(".csv"):
+            spectrum_dataset.to_csv_file(filename)
+        elif filename.endswith(".db"):
+            spectrum_dataset.to_shelf(filename)
+        elif filename.endswith(".hd5"):
+            raise NotImplementedError("HDF5 formatting is not ready, please check back later!")
+        else:
+            raise ValueError("the filename extension was not recognized, it must end with: .csv, .db, or .hd5")
+            
+    def import_background_spectrum(self, filename):
+        """export the spectrum in a data format matching the file extension
+           valid extensions: .csv, .db, .hd5
+        """
+        if   filename.endswith(".csv"):
+            self.background_spectrum_dataset = SpectrumDataSet.from_csv(filename)
+        elif filename.endswith(".db"):
+            self.background_spectrum_dataset = SpectrumDataSet.from_shelf(filename)
+        elif filename.endswith(".hd5"):
+            raise NotImplementedError("HDF5 formatting is not ready, please check back later!")
+        else:
+            raise ValueError("the filename extension was not recognized, it must end with: .csv, .db, or .hd5")
+        path, fn = os.path.split(filename)
+        self.metadata['background_filename'] = fn
+    
+    def compute_processed_spectrum_dataset(self):
+        image_capture = self.load_controller('image_capture')
+        S  = self.get_raw_spectrum()
+        B  = self.get_background_spectrum()
+        C = S - B
+        md = self.last_capture_metadata.copy()
+        md['background_filename'] = self.metadata['background_filename']
+        spectrum_dataset = SpectrumDataSet(raw_intensity = S,
+                                           background_intensity = B,
+                                           corrected_intensity = C,
+                                           metadata=md)
+        return spectrum_dataset
+            
+    def export_processed_spectrum(self, filename):
+        """export the spectrum in a data format matching the file extension
+           valid extensions: .csv, .db, .hd5
+        """
+        spectrum_dataset = self.compute_processed_spectrum_dataset()
         
         if   filename.endswith(".csv"):
             spectrum_dataset.to_csv_file(filename)
@@ -280,7 +351,7 @@ class Application:
         elif filename.endswith(".hd5"):
             raise NotImplementedError("HDF5 formatting is not ready, please check back later!")
         else:
-            raise ValueError("the filename extension was not recognized, it must end with: .csv, .bd, or .hd5")
+            raise ValueError("the filename extension was not recognized, it must end with: .csv, .db, or .hd5")    
         
     def export_conditions(self, filename):
         """export the conditions in a data format matching the file extension

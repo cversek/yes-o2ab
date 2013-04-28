@@ -101,6 +101,7 @@ class Interface(Controller):
             # START LOOP -------------------------------------------------
             i = 0
             while True:
+                self._thread_abort_breakout_point()
                 if  self._thread_check_stop_event() or (not num_captures is None and i >= num_captures):
                     # END NORMALLY ---------------------------------------
                     info = OrderedDict()
@@ -122,7 +123,7 @@ class Interface(Controller):
                 info['traceback'] = traceback.format_exc()
             self._send_event("IMAGE_CAPTURE_LOOP_ABORTED",info)
         finally:
-            # FINSIH UP --------------------------------------------------
+            # FINISH UP --------------------------------------------------
             self.reset()
             
     def set_CCD_temperature_setpoint(self, temp):
@@ -195,6 +196,7 @@ class Interface(Controller):
         rbi_nflushes = int(self.configuration['rbi_num_flushes'])
         #configure the optics for the frametype
         self.configure_optics(frametype) #sets camera_frametype
+        
         camera_frametype = self.configuration['camera_frametype']
         info = OrderedDict()
         info['timestamp'] = time.time()
@@ -208,7 +210,6 @@ class Interface(Controller):
         info['rbi_exposure_time'] = rbi_exptime
         info['rbi_num_flushes']   = rbi_nflushes
         self._send_event("IMAGE_CAPTURE_EXPOSURE_STARTED", info)
-        
         with camera._mutex: #locks the resource
             #do RBI flushes
             for i in range(rbi_nflushes):

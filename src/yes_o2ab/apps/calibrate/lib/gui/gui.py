@@ -13,7 +13,8 @@ except ImportError:
 from PIL import Image, ImageTk, ImageOps
 import Pmw
 from numpy import array, arange, savetxt
-from FileDialog import SaveFileDialog
+import numpy as np
+from FileDialog import SaveFileDialog, LoadFileDialog
 import scipy.misc
 #Automat framework provided
 from automat.core.gui.text_widgets           import TextDisplayBox
@@ -21,7 +22,7 @@ from automat.core.gui.pmw_custom.entry_form  import EntryForm
 from automat.core.gui.pmw_custom.validation  import Validator
 from automat.core.plotting.tk_embedded_plots import EmbeddedFigure
 #yes_o2ab framework provided
-from yes_o2ab.core.plotting.spectra          import RawSpectrumPlot
+from yes_o2ab.core.plotting.spectra          import RawSpectrumPlot, ProcessedSpectrumPlot
 from yes_o2ab.core.plotting.temperature      import TemperaturePlot
 #application local
 from condition_fields        import ConditionFields
@@ -37,6 +38,8 @@ WINDOW_TITLE      = "YES O2AB Calibrate"
 WAIT_DELAY        = 100 #milliseconds
 TEXT_BUFFER_SIZE  = 10*2**20 #ten megabytes
 SPECTRAL_FIGSIZE  = (6,5) #inches
+SPECTRUM_PLOT_STYLE = 'r-'
+SPECTRUM_BACKGROUND_PLOT_STYLE = 'b-'
 MAX_IMAGESIZE     = (600,500)
 TEMPERATURE_FIGSIZE  = (6,5) #inches
 LOOP_DELAY        = 100 #milliseconds
@@ -46,20 +49,21 @@ CONDITIONS_BACKUP_FILENAME = os.path.expanduser("~/.yes_o2ab_calibrate_condition
 FINE_ADJUST_STEP_SIZE_DEFAULT = 10 #steps
 
 BUTTON_WIDTH = 20
+SECTION_PADY = 5
 CONFIRMATION_TEXT_DISPLAY_TEXT_HEIGHT = 40
 CONFIRMATION_TEXT_DISPLAY_TEXT_WIDTH  = 80
 
 SETTINGS_FILEPATH = os.path.expanduser("~/.yes_o2ab_calibrate_settings.db")
 
-_empty_regex = re.compile('^$')
-_positive_integer_regex = re.compile('^0|([1-9]\d*)$')
-def positive_integer_validator(text):
-    if _positive_integer_regex.match(text):
-        return Pmw.OK
-    elif _empty_regex.match(text):
-        return Pmw.PARTIAL
-    else:
-        return Pmw.ERROR
+#_empty_regex = re.compile('^$')
+#_positive_integer_regex = re.compile('^0|([1-9]\d*)$')
+#def positive_integer_validator(text):
+#    if _positive_integer_regex.match(text):
+#        return Pmw.OK
+#    elif _empty_regex.match(text):
+#        return Pmw.PARTIAL
+#    else:
+#        return Pmw.ERROR
     
 ###############################################################################
 def IgnoreKeyboardInterrupt():
@@ -167,30 +171,31 @@ class GUI:
         
         
         #band fine adjustment controls
-        band_adjust_button_frame = tk.Frame(left_panel)
-        tk.Label(band_adjust_button_frame, text="Band Fine Adjust:", font = SUBHEADING_LABEL_FONT).pack(side='top', anchor="nw")        
-        self.band_adjustL_button = tk.Button(band_adjust_button_frame,text='<--',command = lambda: self.band_adjust('-1'))
+        band_adjust_frame = tk.Frame(left_panel)
+        tk.Label(band_adjust_frame, text="Band Fine Adjust:", font = SUBHEADING_LABEL_FONT).pack(side='top', anchor="nw")        
+        self.band_adjustL_button = tk.Button(band_adjust_frame,text='<--',command = lambda: self.band_adjust('-1'))
         self.band_adjustL_button.pack(side='left', anchor="nw")
-        self.band_adjustR_button = tk.Button(band_adjust_button_frame,text='-->',command = lambda: self.band_adjust('+1'))
+        self.band_adjustR_button = tk.Button(band_adjust_frame,text='-->',command = lambda: self.band_adjust('+1'))
         self.band_adjustR_button.pack(side='left', anchor="nw")
-        band_adjust_button_frame.pack(side='top',fill='x', anchor="nw")
-        self.band_adjust_stepsize_field = Pmw.EntryField(left_panel,
-                                                         labelpos='w',
-                                                         label_text="step size:",
+        
+        self.band_adjust_stepsize_field = Pmw.EntryField(band_adjust_frame,
+                                                         labelpos='e',
+                                                         label_text="step size (max=1000)",
                                                          label_font = FIELD_LABEL_FONT,
                                                          value = FINE_ADJUST_STEP_SIZE_DEFAULT,
-                                                         entry_width=4,
-                                                         validate = positive_integer_validator,
+                                                         entry_width=9,
+                                                         validate = Validator(_min=0,_max=1000,converter=int),
                                                          )
         self.band_adjust_stepsize_field.pack(side='top', anchor="w", expand='no')
-        self.band_adjust_position_field = Pmw.EntryField(left_panel,
-                                                         labelpos='w',
-                                                         label_text=" position:",
+        self.band_adjust_position_field = Pmw.EntryField(band_adjust_frame,
+                                                         labelpos='e',
+                                                         label_text="position",
                                                          label_font = FIELD_LABEL_FONT,
-                                                         entry_width=8,
+                                                         entry_width=9,
                                                          entry_state='readonly',
                                                          )
         self.band_adjust_position_field.pack(side='top', anchor="w", expand='no')
+        band_adjust_frame.pack(side='top', anchor="nw")
         
         #focus adjustment controls
         focus_adjust_button_frame = tk.Frame(left_panel)
@@ -200,29 +205,44 @@ class GUI:
         self.focus_adjustR_button = tk.Button(focus_adjust_button_frame,text='-->',command = lambda: self.focus_adjust('+1'))
         self.focus_adjustR_button.pack(side='left', anchor="nw")
         focus_adjust_button_frame.pack(side='top',fill='x', anchor="nw")
-        self.focus_adjust_stepsize_field = Pmw.EntryField(left_panel,
-                                                          labelpos    = 'w',
-                                                          label_text  ="step size:",
+        self.focus_adjust_stepsize_field = Pmw.EntryField(focus_adjust_button_frame,
+                                                          labelpos    = 'e',
+                                                          label_text  ="step size (max=1000)",
                                                           label_font  = FIELD_LABEL_FONT,
                                                           value       = FINE_ADJUST_STEP_SIZE_DEFAULT,
-                                                          entry_width = 4,
-                                                          validate    = positive_integer_validator,
+                                                          entry_width = 9,
+                                                          validate    = Validator(_min=0,_max=1000,converter=int),
                                                           )
         self.focus_adjust_stepsize_field.pack(side='top', anchor="w", expand='no')
-        self.focus_adjust_position_field = Pmw.EntryField(left_panel,
-                                                          labelpos    = 'w',
-                                                          label_text  = " position:",
+        self.focus_adjust_position_field = Pmw.EntryField(focus_adjust_button_frame,
+                                                          labelpos    = 'e',
+                                                          label_text  = "position",
                                                           label_font  = FIELD_LABEL_FONT,
-                                                          entry_width = 8,
+                                                          entry_width = 9,
                                                           entry_state = 'readonly',
                                                           )
         self.focus_adjust_position_field.pack(side='top', anchor="w", expand='no')
         
         #Condition Monitoring
-        tk.Label(left_panel, pady = 10).pack(side='top',fill='x', anchor="nw")
+        self._condition_monitor_mode = False
+        tk.Label(left_panel, pady = SECTION_PADY).pack(side='top',fill='x', anchor="nw")
         tk.Label(left_panel, text="Condition Monitoring:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
+        self.condition_monitor_button = tk.Button(left_panel,text='Monitor',command = self.condition_monitor_mode_toggle, width = BUTTON_WIDTH)
+        self.condition_monitor_button.pack(side='top', anchor="nw")
         self.condition_fields = ConditionFields(left_panel)
         self.condition_fields.pack(side='top', anchor="w", expand='no')
+        
+        #Data Processing
+        tk.Label(left_panel, pady = SECTION_PADY).pack(side='top',fill='x', anchor="nw")
+        tk.Label(left_panel, text="Data Processing:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
+        self.background_filename_field = Pmw.EntryField(left_panel,
+                                                        labelpos='w',
+                                                        label_text="Background Filename:",
+                                                        label_font = FIELD_LABEL_FONT,
+                                                        #entry_width=20,
+                                                        entry_state = 'readonly',
+                                                        )
+        self.background_filename_field.pack(side='top', fill='x',anchor="nw", expand='no')
                           
         left_panel.pack(fill='y',expand='no',side='left', padx = 10)
         #build the middle panel - a tabbed notebook
@@ -232,27 +252,39 @@ class GUI:
         tab1 = tk.Frame(nb)
         tab2 = tk.Frame(nb)
         tab3 = tk.Frame(nb)
-        nb.add(tab1, text="Raw Spectrum Display")
-        nb.add(tab2, text="Raw Image Display")
-        nb.add(tab3, text="Conditions")
+        tab4 = tk.Frame(nb)
+        nb.add(tab1, text="Raw Spectrum")
+        nb.add(tab2, text="Proc. Spectrum")
+        nb.add(tab3, text="Raw Image")
+        nb.add(tab4, text="Conditions")
         #create an tk embedded figure for spectral display
-        self.spectral_plot_template = RawSpectrumPlot()
-        self.spectral_figure_widget = EmbeddedFigure(tab1, figsize=SPECTRAL_FIGSIZE)
-        self.spectral_figure_widget.pack(side='top',fill='both', expand='yes')
-        self.replot_spectrum_button = tk.Button(tab1,text='Replot Spectrum',command = self.replot_spectrum, state='disabled')
-        self.replot_spectrum_button.pack(side='bottom',anchor="sw")
-        self.export_spectrum_button = tk.Button(tab1,text='Export Spectrum',command = self.export_spectrum, state='disabled')
-        self.export_spectrum_button.pack(side='left',anchor="sw")
+        self.raw_spectrum_plot_template = RawSpectrumPlot()
+        self.raw_spectrum_figure_widget = EmbeddedFigure(tab1, figsize=SPECTRAL_FIGSIZE)
+        self.raw_spectrum_figure_widget.pack(side='top',fill='both', expand='yes')
+        self.replot_raw_spectrum_button = tk.Button(tab1,text='Replot Spectrum',command = self.replot_raw_spectrum, state='disabled', width = BUTTON_WIDTH)
+        self.replot_raw_spectrum_button.pack(side='left',anchor="sw")
+        self.export_raw_spectrum_button = tk.Button(tab1,text='Export Spectrum',command = self.export_raw_spectrum, state='disabled', width = BUTTON_WIDTH)
+        self.export_raw_spectrum_button.pack(side='left',anchor="sw")
+        self.import_background_spectrum_button = tk.Button(tab1,text='Import Background',command = self.import_background_spectrum, width = BUTTON_WIDTH)
+        self.import_background_spectrum_button.pack(side='left',anchor="sw")
+        #create an tk embedded figure for spectral display
+        self.processed_spectrum_plot_template = ProcessedSpectrumPlot()
+        self.processed_spectrum_figure_widget = EmbeddedFigure(tab2, figsize=SPECTRAL_FIGSIZE)
+        self.processed_spectrum_figure_widget.pack(side='top',fill='both', expand='yes')
+        self.replot_processed_spectrum_button = tk.Button(tab2,text='Replot Spectrum',command = self.replot_processed_spectrum, state='disabled', width = BUTTON_WIDTH)
+        self.replot_processed_spectrum_button.pack(side='left',anchor="sw")
+        self.export_processed_spectrum_button = tk.Button(tab2,text='Export Spectrum',command = self.export_processed_spectrum, state='disabled', width = BUTTON_WIDTH)
+        self.export_processed_spectrum_button.pack(side='left',anchor="sw")
         #create a tk Label widget for image display
-        self.photo_label_widget = tk.Label(tab2)
+        self.photo_label_widget = tk.Label(tab3)
         self.photo_label_widget.pack(side='top',fill='both', expand='yes')
-        self.save_image_button = tk.Button(tab2,text='Save Image',command = self.save_image, state='disabled')
+        self.save_image_button = tk.Button(tab3,text='Save Image',command = self.save_image, state='disabled', width = BUTTON_WIDTH)
         self.save_image_button.pack(side='bottom',anchor="sw")
         #create an tk embedded figure for temperature display
         self.temperature_plot_template = TemperaturePlot()
-        self.temperature_figure_widget = EmbeddedFigure(tab3, figsize=TEMPERATURE_FIGSIZE)
+        self.temperature_figure_widget = EmbeddedFigure(tab4, figsize=TEMPERATURE_FIGSIZE)
         self.temperature_figure_widget.pack(side='top',fill='both', expand='yes')
-        self.export_conditions_button = tk.Button(tab3,text='Export Conditions',command = self.export_conditions, state='disabled')
+        self.export_conditions_button = tk.Button(tab4,text='Export Conditions',command = self.export_conditions, state='disabled')
         self.export_conditions_button.pack(side='bottom',anchor="sw")
         mid_panel.pack(fill='both', expand='yes',side='left')
         
@@ -279,9 +311,9 @@ class GUI:
         IgnoreKeyboardInterrupt()
         self.flush_event_queues()
         #get metadata from devices to update the fields
+        self.condition_monitor_button.invoke()
         md = self.app.query_metadata()
         self._update_optics_fields(md)
-        self._update_conditions_fields_loop()
         self.flush_event_queues()
         #reveal the main window
         self.win.deiconify()
@@ -297,14 +329,14 @@ class GUI:
                 self.print_event(event,info)
     
     def busy(self):
-        self.disable_buttons()
+        self.disable_control_buttons()
         self.win.config(cursor="watch")
         
     def not_busy(self):
-        self.enable_buttons()
+        self.enable_control_buttons()
         self.win.config(cursor="")
         
-    def disable_buttons(self):
+    def disable_control_buttons(self):
         self.change_capture_settings_button.configure(state="disabled")
         self.capture_continually_button.configure(state="disabled")
         #self.stop_button.configure(state="disabled")
@@ -315,13 +347,8 @@ class GUI:
         self.band_adjustR_button.configure(state="disabled")
         self.focus_adjustL_button.configure(state="disabled")
         self.focus_adjustR_button.configure(state="disabled")
-#        self.flatfield_posIN_button.configure(state="disabled")
-#        self.flatfield_posOUT_button.configure(state="disabled")
-        self.replot_spectrum_button.configure(state="disabled")
-        self.export_spectrum_button.configure(state="disabled")
-        self.save_image_button.configure(state="disabled")
         
-    def enable_buttons(self):
+    def enable_control_buttons(self):
         self.change_capture_settings_button.configure(state="normal")
         self.capture_continually_button.configure(state="normal")
         #self.stop_button.configure(state="normal")
@@ -332,13 +359,6 @@ class GUI:
         self.band_adjustR_button.configure(state="normal")
         self.focus_adjustL_button.configure(state="normal")
         self.focus_adjustR_button.configure(state="normal")
-#        self.flatfield_posIN_button.configure(state="normal")
-#        self.flatfield_posOUT_button.configure(state="normal")
-        self.replot_spectrum_button.configure(state="normal")
-        self.export_spectrum_button.configure(state="normal")
-        self.save_image_button.configure(state="normal")
-       
-    
 
     def change_capture_settings(self):
         choice = self.capture_settings_dialog.activate()
@@ -399,13 +419,15 @@ class GUI:
             #self.not_busy()
             self.capture_once_button.configure(state='normal')
             self.app.print_comment("capture completed")
-            self.app.compute_spectrum()
-            S = self.app.last_spectrum
-            I = self.app.last_image
-            self._update_spectral_plot(S)
+            self.app.compute_raw_spectrum()
+            S = self.app.get_raw_spectrum()
+            I = self.app.get_last_image()
+            B = self.app.get_background_spectrum()
+            self._update_raw_spectrum_plot(S=S,B=B)
+            self._update_processed_spectrum_plot(S=S,B=B)
             self._update_image(I)
-            self.replot_spectrum_button.config(state='normal') #data can now be replotted
-            self.export_spectrum_button.config(state='normal') #data can now be exported
+            self.replot_raw_spectrum_button.config(state='normal') #data can now be replotted
+            self.export_raw_spectrum_button.config(state='normal') #data can now be exported
             self.save_image_button.config(state='normal')      #data can now be exported
     
     def capture_on_adjust(self):
@@ -465,10 +487,12 @@ class GUI:
             elif event == "IMAGE_CAPTURE_EXPOSURE_COMPLETED":
                 #grab the image, comput the spectrum, then update them
                 I = info['image_array']
-                S = self.app.compute_spectrum(I)
-                self._update_spectral_plot(S)
+                S = self.app.compute_raw_spectrum(I)
+                B = self.app.get_background_spectrum()
+                self._update_raw_spectrum_plot(S=S,B=B)
+                self._update_processed_spectrum_plot(S=S,B=B)
                 self._update_image(I)
-                self.replot_spectrum_button.config(state='normal') #data can now be replotted
+                self.replot_raw_spectrum_button.config(state='normal') #data can now be replotted
                 self.save_image_button.config(state='normal')      #data can now be exported
           
         #reschedule loop
@@ -483,7 +507,7 @@ class GUI:
             self.capture_once_button.config(state='normal')
             self.capture_on_adjust_button.config(state='normal', bg='light gray', relief = 'raised')
             self.capture_continually_button.config(state='normal', bg='light gray', relief = 'raised')
-            self.export_spectrum_button.config(state='normal') #data can now be exported
+            self.export_raw_spectrum_button.config(state='normal') #data can now be exported
             self.stop_button.config(state='disabled')
             #do not reschedule loop
 
@@ -574,15 +598,15 @@ class GUI:
         #change band state if specified
         if (new_band != '(unknown)') and (curr_band != new_band):
             #change the band
-            self.band_field.setvalue("(changing)")
+            self.optics_fields['band'].setvalue("(changing)")
             self.app.print_comment("changing band from '%s' to '%s'... (thread)" % (curr_band,new_band))
             self.app.select_band(new_band, blocking = False) #threaded!
         else:
             self.app.print_comment("not changing band")
         #change the filter position
-        self.filter_position_field.setvalue("(changing)")
-        self.filter_B_field.setvalue("(changing)")
-        self.filter_A_field.setvalue("(changing)")
+        self.optics_fields['filter_pos'].setvalue("(changing)")
+        self.optics_fields['filter_B'].setvalue("(changing)")
+        self.optics_fields['filter_A'].setvalue("(changing)")
         self.app.print_comment("changing filter wheel to position %d... (thread)" % pos)
         self.app.select_filter(pos, blocking = False) #threaded!
         #now wait for the parts to move
@@ -613,7 +637,7 @@ class GUI:
             self.filter_select_dialog.deactivate()
             
     def band_adjust(self, step_direction):
-        curr_band = self.band_field.getvalue()
+        curr_band = self.optics_fields['band'].getvalue()
         #handle unknown band state
         if curr_band == '(unknown)':
             msg = "Warning: the band state is '%s', please select from 'Band/Filter Selection' dialog" % curr_band
@@ -704,9 +728,15 @@ class GUI:
             self.app.print_comment("finished")
             if self._capture_mode == "on_adjust":
                 self.capture_once()
+                
+    def replot_raw_spectrum(self):
+        self.raw_spectrum_plot_template._has_been_plotted = False
+        S = self.app.get_raw_spectrum()
+        B = self.app.get_background_spectrum()
+        self._update_raw_spectrum_plot(S=S,B=B)
 
-    def export_spectrum(self):
-        self.app.print_comment("Exporting data...")
+    def export_raw_spectrum(self):
+        self.app.print_comment("Exporting raw spectrum...")
         dt_now = datetime.datetime.utcnow()
         dt_now_str = dt_now.strftime("%Y-%m-%d-%H_%m_%S")
         #get some metadata for title
@@ -722,9 +752,57 @@ class GUI:
                            key = None
                           )
         if filename:
-            self.app.export_spectrum(filename)
+            self.app.export_raw_spectrum(filename)
         self.app.print_comment("finished")
+        
+        
+    def import_background_spectrum(self):
+        self.app.print_comment("Importing Background Spectrum...")
+        fdlg = LoadFileDialog(self.win,title="Import Background Spectrum Data")
+        userdata_path = self.app.config['paths']['data_dir']    
 
+        filename = fdlg.go(dir_or_file = userdata_path, 
+                           pattern="*.csv", 
+                           key = None
+                          )
+        if filename:
+            self.app.import_background_spectrum(filename)
+            path, fn = os.path.split(filename)
+            self.background_filename_field.setvalue(fn)
+            self.replot_raw_spectrum()
+            self.replot_processed_spectrum()
+            self.replot_processed_spectrum_button.config(state='normal')       #data can now be replotted
+            self.export_processed_spectrum_button.config(state='normal') #data can now be exported
+            self.app.print_comment("finished")
+        else:
+            self.app.print_comment("cancelled")
+            
+    def replot_processed_spectrum(self):
+        self.processed_spectrum_plot_template._has_been_plotted = False
+        S = self.app.get_raw_spectrum()
+        B = self.app.get_background_spectrum()
+        self._update_processed_spectrum_plot(S=S,B=B)
+    
+    def export_processed_spectrum(self):
+        self.app.print_comment("Exporting proccesed spectrum...")
+        dt_now = datetime.datetime.utcnow()
+        dt_now_str = dt_now.strftime("%Y-%m-%d-%H_%m_%S")
+        #get some metadata for title
+        frametype = self.app.last_capture_metadata['frametype']
+        exptime   = int(self.app.last_capture_metadata['exposure_time'])
+        default_filename = "%s_proc_spectrum-%s_exptime=%dms.csv" % (dt_now_str,frametype,exptime) 
+        fdlg = SaveFileDialog(self.win,title="Save Processed Spectrum Data")
+        userdata_path = self.app.config['paths']['data_dir']    
+
+        filename = fdlg.go(dir_or_file = userdata_path, 
+                           pattern="*.csv", 
+                           default=default_filename, 
+                           key = None
+                          )
+        if filename:
+            self.app.export_processed_spectrum(filename)
+        self.app.print_comment("finished")
+        
     def save_image(self):
         self.app.print_comment("saving image...")
         dt_now = datetime.datetime.utcnow()
@@ -769,35 +847,89 @@ class GUI:
                           )
         if filename:
             self.app.export_conditions(filename)
-        self.app.print_comment("finished")
-            
-    def replot_spectrum(self):
-        self.spectral_plot_template._has_been_plotted = False
-        S = self.app.last_spectrum
-        self._update_spectral_plot(S)
-    
-    def _update_spectral_plot(self, S):
-        figure        = self.spectral_figure_widget.get_figure()        
-        plot_template = self.spectral_plot_template
-        #get some metadata for plot formatting
-        frametype = self.app.metadata['frametype']
-        exptime   = int(self.app.metadata['exposure_time'])
-        title     = "Raw Spectrum (%s, %d ms)" % (frametype, exptime)
-        self.spectral_plot_template.configure(title=title)
-        if not plot_template.has_been_plotted(): 
-            self.app.print_comment("Replotting the spectrum.")
-            figure.clear()
-            Xs = [arange(len(S))]
-            Ys = [S]
-            plot_template.plot(Xs, Ys,figure = figure)
-            self.spectral_figure_widget.update()
+            self.app.print_comment("finished.")
         else:
-            self.app.print_comment("Updating spectrum data.")
+            self.app.print_comment("cancelled.")
+            
+    
+    
+    def _update_raw_spectrum_plot(self, S = None, B = None):
+        assert not (S is None and B is None)
+        figure        = self.raw_spectrum_figure_widget.get_figure()        
+        plot_template = self.raw_spectrum_plot_template
+        title = "Raw Spectrum"
+        self.raw_spectrum_plot_template.configure(title=title)
+        if (not plot_template.has_been_plotted()): 
+            self.app.print_comment("Replotting the Raw Spectrum.")
+            figure.clear()
+            Xs = []
+            Ys = []
+            styles = []
+            labels = []
+            #raw spectrum
+            if S is None:
+                S = np.zeros_like(B)
+                Xs.append(np.arange(len(S)))
+                Ys.append(S)
+                styles.append(SPECTRUM_PLOT_STYLE)
+                labels.append("None")
+            else:
+                #get some metadata for label formatting
+                frametype = self.app.metadata['frametype']
+                exptime   = int(self.app.metadata['exposure_time'])
+                label     = "raw-%s, exptime = %d ms" % (frametype, exptime)
+                Xs.append(np.arange(len(S)))
+                Ys.append(S)
+                styles.append(SPECTRUM_PLOT_STYLE)
+                labels.append(label)
+            #background
+            if not B is None:
+                Xs.append(np.arange(len(B)))
+                Ys.append(B)
+                styles.append(SPECTRUM_BACKGROUND_PLOT_STYLE)
+                label = "background"
+                labels.append(label)
+            plot_template.plot(Xs, Ys, styles = styles, labels = labels, figure = figure)
+            self.raw_spectrum_figure_widget.update()
+        else:
+            self.app.print_comment("Updating Raw Spectrum data.")
             #get the plot line from the figure FIXME is there an easier way?
             line = figure.axes[0].lines[0]
             line.set_ydata(S)
+            #get some metadata for label formatting
+            frametype = self.app.metadata['frametype']
+            exptime   = int(self.app.metadata['exposure_time'])
+            label     = "raw-%s, exptime = %d ms" % (frametype, exptime)
+            line.set_label(label)
             figure.axes[0].set_title(title)
-            self.spectral_figure_widget.update()
+            self.raw_spectrum_figure_widget.update()
+            
+    def _update_processed_spectrum_plot(self, S, B):
+        if not (S is None or B is None):
+            figure        = self.processed_spectrum_figure_widget.get_figure()        
+            plot_template = self.processed_spectrum_plot_template
+            title = "Processed Spectrum"
+            self.raw_spectrum_plot_template.configure(title=title)
+            self.app.print_comment("Replotting the Processed Spectrum.")
+            figure.clear()
+            C = S - B
+            X = np.arange(len(C))
+            Xs = [X]
+            Ys = [C]
+            plot_template.plot(Xs, Ys, figure = figure)
+            self.processed_spectrum_figure_widget.update()
+#            else:
+#                self.app.print_comment("Updating processed Spectrum data.")
+#                #get the plot line from the figure FIXME is there an easier way?
+#                line = figure.axes[0].lines[0]
+#                line.set_ydata(S)
+#                #get some metadata for label formatting
+#                frametype = self.app.metadata['frametype']
+#                exptime   = int(self.app.metadata['exposure_time'])
+#                label     = "raw-%s, exptime = %d ms" % (frametype, exptime)
+#                line.set_label(label)
+#                figure.axes[0].set_title(title)
+#                self.processed_spectrum_figure_widget.update()
             
     def _update_image(self, I):
         #downsample to 8-bit for display
@@ -847,40 +979,54 @@ class GUI:
         self.band_adjust_position_field.setvalue(str(band_adjust_pos))
         focuser_pos = md['focuser_pos']
         self.focus_adjust_position_field.setvalue(str(focuser_pos))
+        
+    def condition_monitor_mode_toggle(self):
+        if self._condition_monitor_mode:  #is on, turn off
+            self.condition_monitor_button.config(bg='light gray', relief="raised")
+            self._condition_monitor_mode = False
+            self.app.print_comment("Stopping Condition Monitoring.")
+        else:                             #is off, turn on
+            self.condition_monitor_button.config(bg='green', relief="sunken")
+            self._condition_monitor_mode = True
+            self.app.print_comment("Starting Condition Monitoring.")
+            self._update_conditions_fields_loop()
     
     def _update_conditions_fields_loop(self):
-        condition_monitor = self.app.load_controller('condition_monitor')
-        sample = condition_monitor.acquire_sample()
-        self.app.conditions_sample_times.append(time.time())
-        dt_now = datetime.datetime.utcnow()
-        dt_now_str = dt_now.strftime("%Y-%m-%d-%H:%m:%S")
-        #read out all pending events
-        while not condition_monitor.event_queue.empty():
-            event, info = condition_monitor.event_queue.get()
-            self.print_event(event,info)
-        #update all the widgets
-        self.condition_fields.sample_datetime_field.setvalue(dt_now_str)
-        if not sample is None: #could fail on mutex lockout
-            for key, widget in self.condition_fields.fields.items():
-                val = sample[key]
-                data_list = self.app.conditions_Ydata.get(key,[])
-                data_list.append(val)
-                self.app.conditions_Ydata[key] = data_list
-                val_str = "%0.2f" % val
-                widget.setvalue(val_str)
-        #now update the plot
-        self._update_conditions_plot()
-        self.app.export_conditions(CONDITIONS_BACKUP_FILENAME) #write a backup
-        self.export_conditions_button.config(state='normal') #data can now be exported
-        #reschedule loop
-        self.win.after(UPDATE_CONDITIONS_LOOP_DELAY, self._update_conditions_fields_loop)
+        if self._condition_monitor_mode:
+            condition_monitor = self.app.load_controller('condition_monitor')
+            sample = condition_monitor.acquire_sample()
+            self.app.conditions_sample_times.append(time.time())
+            dt_now = datetime.datetime.utcnow()
+            dt_now_str = dt_now.strftime("%Y-%m-%d-%H:%m:%S")
+            #read out all pending events
+            while not condition_monitor.event_queue.empty():
+                event, info = condition_monitor.event_queue.get()
+                self.print_event(event,info)
+            #update all the widgets
+            self.condition_fields.sample_datetime_field.setvalue(dt_now_str)
+            if not sample is None: #could fail on mutex lockout
+                for key, widget in self.condition_fields.fields.items():
+                    val = sample[key]
+                    data_list = self.app.conditions_Ydata.get(key,[])
+                    data_list.append(val)
+                    self.app.conditions_Ydata[key] = data_list
+                    val_str = "%0.2f" % val
+                    widget.setvalue(val_str)
+            #now update the plot
+            self._update_conditions_plot()
+            self.app.export_conditions(CONDITIONS_BACKUP_FILENAME) #write a backup
+            self.export_conditions_button.config(state='normal') #data can now be exported
+            #reschedule loop
+            self.win.after(UPDATE_CONDITIONS_LOOP_DELAY, self._update_conditions_fields_loop)
+        else:
+            return
     
     def _update_conditions_plot(self):
         figure        = self.temperature_figure_widget.get_figure()        
         plot_template = self.temperature_plot_template
         #get some metadata for plot formatting
         #title     = "Raw Spectrum (%s, %d ms)"
-        #self.spectral_plot_template.configure(title=title)
+        #self.raw_spectrum_plot_template.configure(title=title)
         self.app.print_comment("Replotting the temperature graph.")
         figure.clear()
         labels = []
@@ -930,11 +1076,39 @@ class GUI:
         settings['repeat_delay']      = self.capture_settings_dialog.form['repeat_delay']
         settings.close()
         
-            
-    def _close(self):
+    def abort(self):
         #abort all active controllers
-        image_capture = self.app.load_controller('image_capture')
-        image_capture.abort()
+        self.app.abort_controllers()
         #cache the GUI settings FIXME - is this necessary?
         self._cache_settings()
         self.win.destroy()
+            
+    def _close(self):
+        self.app.print_comment("\tApplication Close requested.")
+        #check if any controllers are still alive
+        running_controllers = []
+        for handle in self.app.USED_CONTROLLERS:
+            self.app.print_comment("\tChecking status of controller '%s'..." % handle)
+            controller = self.app.load_controller(handle)
+            if controller.thread_isAlive():
+                self.app.print_comment("\tRUNNING")
+                running_controllers.append(handle)
+            else:
+                self.app.print_comment("\tSTOPPED")
+        if running_controllers:
+            msg = "Warning: the following controllers are still running: %r\nAre you sure you want to abort?" % running_controllers
+            dlg = Pmw.MessageDialog(parent = self.win,
+                                    message_text = msg,
+                                    buttons = ('Cancel','Abort'),
+                                    defaultbutton = 'Cancel',
+                                    title = "Running Controllers Warning",
+                                    )
+            choice = dlg.activate()
+            if choice == 'Abort':
+                self.abort()
+        else:
+            #cache the GUI settings FIXME - is this necessary?
+            self._cache_settings()
+            self.win.destroy()
+            
+               

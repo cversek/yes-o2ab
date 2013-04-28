@@ -2,7 +2,7 @@
 Controller to adjust the FLI focuser
 """
 ###############################################################################
-import time, copy
+import time, copy, traceback
 from automat.core.hwcontrol.controllers.controller import Controller, AbortInterrupt, NullController
 OrderedDict = None
 try:
@@ -95,40 +95,40 @@ class Interface(Controller):
         
         
     def main(self):
-        picomotor_driver = self.devices['picomotor_driver']
-        picomotorA       = self.devices['picomotorA']
-        picomotorB       = self.devices['picomotorB']
-        band_switcher    = self.controllers['band_switcher']
-        step_size = int(self.configuration['step_size'])
-        step_dir  = int(self.configuration['step_direction']) #"+1" or "-1" as string
-        step = step_size*step_dir
-        pos_start = self.query_position()
-        #determine which band we are in to find the correct picomotor channel
-        band = band_switcher.band
-        target_motor = None 
-        channel = None
-        if band == 'O2A':
-            target_motor = picomotorA
-            channel = 'A'
-        elif band == 'H2O':
-            target_motor = picomotorB
-            channel = 'B'
-        else:
-            self.position = None
+        try:
+            picomotor_driver = self.devices['picomotor_driver']
+            picomotorA       = self.devices['picomotorA']
+            picomotorB       = self.devices['picomotorB']
+            band_switcher    = self.controllers['band_switcher']
+            step_size = int(self.configuration['step_size'])
+            step_dir  = int(self.configuration['step_direction']) #"+1" or "-1" as string
+            step = step_size*step_dir
+            pos_start = self.query_position()
+            #determine which band we are in to find the correct picomotor channel
+            band = band_switcher.band
+            target_motor = None 
+            channel = None
+            if band == 'O2A':
+                target_motor = picomotorA
+                channel = 'A'
+            elif band == 'H2O':
+                target_motor = picomotorB
+                channel = 'B'
+            else:
+                self.position = None
+                info = OrderedDict()
+                info['timestamp'] = time.time()
+                info['exception'] = RuntimeError("band state is %s" % band)
+                self._send_event("BAND_ADJUSTER_STEP_FAILED", info)
+                return
+            #send start event
             info = OrderedDict()
             info['timestamp'] = time.time()
-            info['exception'] = RuntimeError("band state is %s" % band)
-            self._send_event("BAND_ADJUSTER_STEP_FAILED", info)
-            return
-        #send initialize start event
-        info = OrderedDict()
-        info['timestamp'] = time.time()
-        info['band']      = band
-        info['picomotor_driver_channel'] = channel
-        info['step']      = step
-        info['start_position']  = pos_start
-        self._send_event("BAND_ADJUSTER_STEP_START", info)
-        try:
+            info['band']      = band
+            info['picomotor_driver_channel'] = channel
+            info['step']      = step
+            info['start_position']  = pos_start
+            self._send_event("BAND_ADJUSTER_STEP_STARTED", info)
             with picomotor_driver._mutex:   
                 #break a large step into small ones
                 babysteps = step_size // BABYSTEPSIZE * [step_dir*BABYSTEPSIZE] + [step_dir*(step_size % BABYSTEPSIZE)]
@@ -142,24 +142,29 @@ class Interface(Controller):
                     self._send_event("BAND_ADJUSTER_STEP_POLL", info)
                     #take a babystep
                     target_motor.move_relative(babystep, blocking = True)
-        except RuntimeError, exc: #can't get mutex locks (thread or process level)
+                # END NORMALLY -------------------------------------------
+                pos_end = self.query_position()
+                info = OrderedDict()
+                info['timestamp'] = time.time()
+                info['band']      = band
+                info['picomotor_driver_channel'] = channel
+                info['step']      = step
+                info['start_position']  = pos_start
+                info['pos_end']   = pos_end
+                self._send_event("BAND_ADJUSTER_STEP_END", info)
+                return pos_end
+        except (AbortInterrupt, Exception), exc:
+            # END ABNORMALLY ---------------------------------------------
             info = OrderedDict()
             info['timestamp'] = time.time()
             info['exception'] = exc
-            self._send_event("BAND_ADJUSTER_STEP_FAIL", info)
-        #success
-        pos_end = self.query_position()
-        info = OrderedDict()
-        info['timestamp'] = time.time()
-        info['band']      = band
-        info['picomotor_driver_channel'] = channel
-        info['step']      = step
-        info['start_position']  = pos_start
-        info['pos_end']   = pos_end
-        self._send_event("BAND_ADJUSTER_STEP_END", info)
-        #finish up
-        self.reset() #reset the controller to be used again
-        
+            if not isinstance(exc, AbortInterrupt):
+                info['traceback'] = traceback.format_exc()
+            self._send_event("BAND_ADJUSTER_STEP_FAILED",info)
+        finally:
+            # FINISH UP --------------------------------------------------
+            self.reset()
+      
         
 def get_interface(**kwargs):
     interface_mode = kwargs.pop('interface_mode','threaded')

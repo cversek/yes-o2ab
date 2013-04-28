@@ -22,8 +22,8 @@ class Interface(Controller):
         Controller.__init__(self, **kwargs)
         self.last_sample = None
         
-    def initialize(self):
-        self.thread_init()
+    def initialize(self, **kwargs):
+        self.thread_init(**kwargs)
         self.initialize_devices()
         
     def get_last_sample(self):

@@ -2,7 +2,7 @@
 Controller to adjust the FLI focuser
 """
 ###############################################################################
-import sys, time, copy
+import sys, time, copy, traceback
 from automat.core.hwcontrol.controllers.controller import Controller, AbortInterrupt, NullController
 OrderedDict = None
 try:
@@ -49,20 +49,9 @@ class Interface(Controller):
         pass
         
     def query_position(self):
-        focuser = self.devices['focuser']
-        try:
-            with focuser._mutex:
-                self.position = focuser.get_position()
-        except RuntimeError, exc: #can't get mutex locks (thread or process level)
-            info = OrderedDict()
-            info['timestamp'] = time.time()
-            info['exception'] = exc
-            self._send_event("FOCUS_ADJUSTER_QUERY_POSITION_FAILED", info)
-        #success
-        info = OrderedDict()
-        info['timestamp'] = time.time()
-        info['position']  = self.position
-        self._send_event("FOCUS_ADJUSTER_QUERY_POSITION", info)
+        focuser   = self.devices['focuser']
+        with focuser._mutex:
+            self.position = focuser.get_position()
         return self.position
         
     def main(self):
@@ -77,7 +66,7 @@ class Interface(Controller):
             info['timestamp'] = time.time()
             info['step']      = step
             info['start_position']  = pos_start
-            self._send_event("FOCUS_ADJUSTER_STEP_START", info)
+            self._send_event("FOCUS_ADJUSTER_STEP_STARTED", info)
         
             with focuser._mutex:   
                 #focuser.step(step, blocking = False) #FIXME asynchron stepper mode doesn't work!
@@ -93,18 +82,22 @@ class Interface(Controller):
                     self._send_event("FOCUS_ADJUSTER_STEP_POLL", info)
                     #take a babystep
                     focuser.step(babystep, blocking = True)
-                #success
-                pos_end = self.query_position()
-                info = OrderedDict()
-                info['timestamp'] = time.time()
-                info['step']      = step
-                info['start_position']  = pos_start
-                info['pos_end']   = pos_end
-                self._send_event("FOCUS_ADJUSTER_STEP_END", info)
-        except Exception as exc:
+            #success
+            pos_end = self.query_position()
+            # END NORMALLY ---------------------------------------------
+            info = OrderedDict()
+            info['timestamp'] = time.time()
+            info['step']      = step
+            info['start_position']  = pos_start
+            info['pos_end']   = pos_end
+            self._send_event("FOCUS_ADJUSTER_STEP_COMPLETED", info)
+        except (AbortInterrupt, Exception), exc:
+            # END ABNORMALLY ---------------------------------------------
             info = OrderedDict()
             info['timestamp'] = time.time()
             info['exception'] = exc
+            if not isinstance(exc, AbortInterrupt):
+                info['traceback'] = traceback.format_exc()
             self._send_event("FOCUS_ADJUSTER_STEP_FAILED", info)
         finally:
             #finish up

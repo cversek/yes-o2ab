@@ -900,16 +900,23 @@ class GUI:
             plot_template.plot(Xs, Ys, styles = styles, labels = labels, figure = figure)
             self.raw_spectrum_figure_widget.update()
         else:
-            self.app.print_comment("Updating Raw Spectrum data.")
             #get the plot line from the figure FIXME is there an easier way?
-            line = figure.axes[0].lines[0]
-            line.set_ydata(S)
+            axis = figure.axes[0]
+            line0 = axis.lines[0]
+            line0.set_ydata(S)
             #get some metadata for label formatting
             frametype = self.app.metadata['frametype']
             exptime   = int(self.app.metadata['exposure_time'])
             label     = "raw-%s, exptime = %d ms" % (frametype, exptime)
-            line.set_label(label)
-            figure.axes[0].set_title(title)
+            line0.set_label(label)
+            try:
+                line1 = axis.lines[1]
+                line1.set_label("background")
+            except IndexError:
+                pass
+            axis.legend()
+            self.app.print_comment("Updating Raw Spectrum data: %s" % label)
+            #figure.axes[0].set_title(title)
             self.raw_spectrum_figure_widget.update()
             
     def _update_processed_spectrum_plot(self, S, B):
@@ -956,9 +963,9 @@ class GUI:
     
     def _update_filter_status(self, md):
         if md is None:
-            self.filter_position_field.setvalue("(changing)")
-            self.filter_B_field.setvalue("(changing)")
-            self.filter_A_field.setvalue("(changing)")
+            self.optics_fields['filter_pos'].setvalue("(changing)")
+            self.optics_fields['filter_B'].setvalue("(changing)")
+            self.optics_fields['filter_A'].setvalue("(changing)")
         else:
             self.optics_fields['filter_pos'].setvalue(str(md['filt_pos']))
             B = md['filt_B_num']

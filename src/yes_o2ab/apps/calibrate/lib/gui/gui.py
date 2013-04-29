@@ -746,7 +746,7 @@ class GUI:
     def export_raw_spectrum(self):
         self.app.print_comment("Exporting raw spectrum...")
         dt_now = datetime.datetime.utcnow()
-        dt_now_str = dt_now.strftime("%Y-%m-%d-%H_%m_%S")
+        dt_now_str = dt_now.strftime("%Y-%m-%d-%H_%M_%S")
         #get some metadata for title
         frametype = self.app.last_capture_metadata['frametype']
         exptime   = int(self.app.last_capture_metadata['exposure_time'])
@@ -794,7 +794,7 @@ class GUI:
     def export_processed_spectrum(self):
         self.app.print_comment("Exporting proccesed spectrum...")
         dt_now = datetime.datetime.utcnow()
-        dt_now_str = dt_now.strftime("%Y-%m-%d-%H_%m_%S")
+        dt_now_str = dt_now.strftime("%Y-%m-%d-%H_%M_%S")
         #get some metadata for title
         frametype = self.app.last_capture_metadata['frametype']
         exptime   = int(self.app.last_capture_metadata['exposure_time'])
@@ -814,7 +814,7 @@ class GUI:
     def save_image(self):
         self.app.print_comment("saving image...")
         dt_now = datetime.datetime.utcnow()
-        dt_now_str = dt_now.strftime("%Y-%m-%d-%H_%m_%S")
+        dt_now_str = dt_now.strftime("%Y-%m-%d-%H_%M_%S")
         #get some metadata for title
         frametype = self.app.last_capture_metadata['frametype']
         exptime   = int(self.app.last_capture_metadata['exposure_time'])
@@ -842,7 +842,7 @@ class GUI:
     def export_conditions(self):
         self.app.print_comment("Exporting conditions data...")
         dt_now = datetime.datetime.utcnow()
-        dt_now_str = dt_now.strftime("%Y-%m-%d-%H_%m_%S")
+        dt_now_str = dt_now.strftime("%Y-%m-%d-%H_%M_%S")
         #get some metadata for title
         default_filename = "%s_conditions.csv" % (dt_now_str,) 
         fdlg = SaveFileDialog(self.win,title="Save Conditions Data")

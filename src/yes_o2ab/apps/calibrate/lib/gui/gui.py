@@ -1012,7 +1012,7 @@ class GUI:
             sample = condition_monitor.acquire_sample()
             self.app.conditions_sample_times.append(time.time())
             dt_now = datetime.datetime.utcnow()
-            dt_now_str = dt_now.strftime("%Y-%m-%d-%H:%m:%S")
+            dt_now_str = dt_now.strftime("%Y-%m-%d-%H:%M:%S")
             #read out all pending events
             while not condition_monitor.event_queue.empty():
                 event, info = condition_monitor.event_queue.get()

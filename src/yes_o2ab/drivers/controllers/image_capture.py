@@ -142,10 +142,12 @@ class Interface(Controller):
             self.set_opaque_filter(False)
             self.configuration['camera_frametype'] = 'normal'
         elif frametype == 'dark':
+            self.set_flatfield('out')
             self.set_opaque_filter(False)
             self.configuration['camera_frametype'] = 'dark'
         elif frametype == 'bias':
             #bias is a zero time readout
+            self.set_flatfield('out')
             self.set_opaque_filter(False)
             self.configuration['camera_frametype'] = 'dark'
         elif frametype == 'flatfield':

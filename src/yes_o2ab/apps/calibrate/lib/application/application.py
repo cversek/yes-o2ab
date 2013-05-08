@@ -371,7 +371,13 @@ class Application:
         else:
             raise ValueError("the filename extension was not recognized, it must end with: .csv, .db, or .hd5")
         
-        
+    def clear_conditions_data(self):
+        """export the conditions in a data format matching the file extension
+           valid extensions: .csv 
+        """
+        #structures for holding conditions data
+        self.conditions_Ydata = OrderedDict()
+        self.conditions_sample_times = []
 
     def select_band(self, band, blocking = True):
         "run the band switcher "

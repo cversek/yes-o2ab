@@ -43,10 +43,13 @@ SPECTRUM_BACKGROUND_PLOT_STYLE = 'b-'
 MAX_IMAGESIZE     = (600,500)
 TEMPERATURE_FIGSIZE  = (6,5) #inches
 LOOP_DELAY        = 100 #milliseconds
-UPDATE_CONDITIONS_LOOP_DELAY = 10*1000 #milliseconds
 CONDITIONS_BACKUP_FILENAME = os.path.expanduser("~/.yes_o2ab_calibrate_conditions.csv")
 
 FINE_ADJUST_STEP_SIZE_DEFAULT = 10 #steps
+
+MONITOR_INTERVAL_DEFAULT = 120  #seconds
+MONITOR_INTERVAL_MIN     = 10   #seconds
+MONITOR_INTERVAL_MAX     = 9999 #seconds
 
 BUTTON_WIDTH = 20
 SECTION_PADY = 5
@@ -124,7 +127,7 @@ class GUI:
         self.stop_button.pack(side='top', anchor="nw")
         
         #optics controls
-        tk.Label(left_panel, pady = 10).pack(side='top',fill='x', anchor="nw")
+        tk.Label(left_panel, pady = SECTION_PADY).pack(side='top',fill='x', anchor="nw")
         tk.Label(left_panel, text="Optics Controls:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
         OPTICS_FIELDS_ENTRY_WIDTH = 9
         self.optics_fields = OrderedDict()
@@ -232,6 +235,18 @@ class GUI:
         tk.Label(left_panel, text="Condition Monitoring:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
         self.condition_monitor_button = tk.Button(left_panel,text='Monitor',command = self.condition_monitor_mode_toggle, width = BUTTON_WIDTH)
         self.condition_monitor_button.pack(side='top', anchor="nw")
+        self.monitor_interval_field = Pmw.EntryField(left_panel,
+                                                     labelpos    = 'e',
+                                                     label_text  ="interval [s] (min=10,max=9999)",
+                                                     label_font  = FIELD_LABEL_FONT,
+                                                     value       = MONITOR_INTERVAL_DEFAULT,
+                                                     entry_width = 4,
+                                                     validate    = Validator(_min=MONITOR_INTERVAL_MIN,
+                                                                             _max=MONITOR_INTERVAL_MAX,
+                                                                            converter=int),
+                                                     )
+        self.monitor_interval_field.pack(side='top', anchor="w", expand='no')
+        tk.Label(left_panel, pady = SECTION_PADY//2).pack(side='top',fill='x', anchor="nw")
         self.condition_fields = ConditionFields(left_panel)
         self.condition_fields.pack(side='top', anchor="w", expand='no')
         
@@ -287,8 +302,10 @@ class GUI:
         self.temperature_plot_template = TemperaturePlot()
         self.temperature_figure_widget = EmbeddedFigure(tab4, figsize=TEMPERATURE_FIGSIZE)
         self.temperature_figure_widget.pack(side='top',fill='both', expand='yes')
-        self.export_conditions_button = tk.Button(tab4,text='Export Conditions',command = self.export_conditions, state='disabled')
-        self.export_conditions_button.pack(side='bottom',anchor="sw")
+        self.export_conditions_button = tk.Button(tab4,text='Export Conditions',command = self.export_conditions, state='disabled', width = BUTTON_WIDTH)
+        self.export_conditions_button.pack(side='left',anchor="sw")
+        self.clear_conditions_data_button = tk.Button(tab4,text='Clear Data',command = self.clear_conditions_data, width = BUTTON_WIDTH)
+        self.clear_conditions_data_button.pack(side='left',anchor="sw")
         mid_panel.pack(fill='both', expand='yes',side='left')
         
         #build the right panel
@@ -859,7 +876,23 @@ class GUI:
         else:
             self.app.print_comment("cancelled.")
             
-    
+    def clear_conditions_data(self):
+        self.app.print_comment("Clearing conditions data...")
+        msg = "Warning: the current conditions data will be erased."
+        dlg = Pmw.MessageDialog(parent = self.win,
+                                message_text = msg,
+                                buttons = ('OK','Cancel'),
+                                defaultbutton = 'OK',
+                                title = "Clear Condition Data",
+                                )
+        choice = dlg.activate()
+        if choice == 'OK':
+            self.app.clear_conditions_data()
+            #now update the plot
+            self._update_conditions_plot()
+            return
+        else:
+            return
     
     def _update_raw_spectrum_plot(self, S = None, B = None):
         assert not (S is None and B is None)
@@ -1009,6 +1042,7 @@ class GUI:
     def _update_conditions_fields_loop(self):
         if self._condition_monitor_mode:
             condition_monitor = self.app.load_controller('condition_monitor')
+            interval = int(self.monitor_interval_field.getvalue())
             sample = condition_monitor.acquire_sample()
             self.app.conditions_sample_times.append(time.time())
             dt_now = datetime.datetime.utcnow()
@@ -1032,7 +1066,8 @@ class GUI:
             self.app.export_conditions(CONDITIONS_BACKUP_FILENAME) #write a backup
             self.export_conditions_button.config(state='normal') #data can now be exported
             #reschedule loop
-            self.win.after(UPDATE_CONDITIONS_LOOP_DELAY, self._update_conditions_fields_loop)
+            interval_ms = interval*1000  #milliseconds
+            self.win.after(interval_ms, self._update_conditions_fields_loop)
         else:
             return
     
@@ -1047,9 +1082,11 @@ class GUI:
         labels = []
         Xs = []
         Ys = []
-        X = array(self.app.conditions_sample_times)
-        X -= X[0] #make relative to start
-        X /= 60.0 #convert to minutes
+        X = []
+        if self.app.conditions_sample_times:
+            X = array(self.app.conditions_sample_times)
+            X -= X[0] #make relative to start
+            X /= 60.0 #convert to minutes
         for key, widget in self.condition_fields.fields.items():
             if key.endswith('_temp'):
                 labels.append(key[:-len('_temp')]) #peel off the '_temp'

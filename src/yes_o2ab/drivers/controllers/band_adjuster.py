@@ -142,17 +142,17 @@ class Interface(Controller):
                     self._send_event("BAND_ADJUSTER_STEP_POLL", info)
                     #take a babystep
                     target_motor.move_relative(babystep, blocking = True)
-                # END NORMALLY -------------------------------------------
-                pos_end = self.query_position()
-                info = OrderedDict()
-                info['timestamp'] = time.time()
-                info['band']      = band
-                info['picomotor_driver_channel'] = channel
-                info['step']      = step
-                info['start_position']  = pos_start
-                info['pos_end']   = pos_end
-                self._send_event("BAND_ADJUSTER_STEP_END", info)
-                return pos_end
+            # END NORMALLY -------------------------------------------
+            pos_end = self.query_position()
+            info = OrderedDict()
+            info['timestamp'] = time.time()
+            info['band']      = band
+            info['picomotor_driver_channel'] = channel
+            info['step']      = step
+            info['start_position']  = pos_start
+            info['pos_end']   = pos_end
+            self._send_event("BAND_ADJUSTER_STEP_END", info)
+            return pos_end
         except (AbortInterrupt, Exception), exc:
             # END ABNORMALLY ---------------------------------------------
             info = OrderedDict()

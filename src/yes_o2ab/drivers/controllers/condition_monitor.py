@@ -112,14 +112,11 @@ class Interface(Controller):
             self._send_event("CONDITION_MONITOR_ABORTED",info)
         finally: #Always clean up!
             self.reset()
-       
-def get_interface(interface_mode = 'threaded', **kwargs):
-    if   interface_mode == 'threaded':
-        return Interface(**kwargs)
-    elif interface_mode == 'interactive':
-        from temperature_monitor_interactive import get_interface as get_interface2
-        return get_interface2(interface_mode = 'interactive', **kwargs)
-            
+
+#------------------------------------------------------------------------------
+# INTERFACE CONFIGURATOR   
+def get_interface(**kwargs):
+    return Interface(**kwargs)
     
     
 ###############################################################################

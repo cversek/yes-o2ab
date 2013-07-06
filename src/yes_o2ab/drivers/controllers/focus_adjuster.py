@@ -103,11 +103,10 @@ class Interface(Controller):
             #finish up
             self.reset() #reset the controller to be used again
         
-        
+#------------------------------------------------------------------------------
+# INTERFACE CONFIGURATOR     
 def get_interface(**kwargs):
-    interface_mode = kwargs.pop('interface_mode','threaded')
-    if   interface_mode == 'threaded':
-        return Interface(**kwargs)
+    return Interface(**kwargs)
             
 ###############################################################################
 # TEST CODE - Run the Controller, collect events, and plot

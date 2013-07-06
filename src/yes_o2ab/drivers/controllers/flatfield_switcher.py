@@ -167,7 +167,9 @@ class InteractiveInterface:
                                     adjust_speed = adjust_speed,
                                    )
         self.band = self.controller.band
-            
+
+#------------------------------------------------------------------------------
+# INTERFACE CONFIGURATOR           
 def get_interface(**kwargs):
     interface_mode = kwargs.pop('interface_mode','threaded')
     if   interface_mode == 'threaded':

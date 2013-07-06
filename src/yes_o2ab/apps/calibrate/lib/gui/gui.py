@@ -231,6 +231,7 @@ class GUI:
         
         #Condition Monitoring
         self._condition_monitor_mode = False
+        self._condition_monitor_after_id = None
         tk.Label(left_panel, pady = SECTION_PADY).pack(side='top',fill='x', anchor="nw")
         tk.Label(left_panel, text="Condition Monitoring:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
         self.condition_monitor_button = tk.Button(left_panel,text='Monitor',command = self.condition_monitor_mode_toggle, width = BUTTON_WIDTH)
@@ -1029,12 +1030,18 @@ class GUI:
         self.focus_adjust_position_field.setvalue(str(focuser_pos))
         
     def condition_monitor_mode_toggle(self):
+        #cancel the next scheduled loop
+        if not self._condition_monitor_after_id is None:
+            self.win.after_cancel(self._condition_monitor_after_id)
+        #toggle the mode
         if self._condition_monitor_mode:  #is on, turn off
             self.condition_monitor_button.config(bg='light gray', relief="raised")
+            self.monitor_interval_field.component('entry').config(state='normal')
             self._condition_monitor_mode = False
             self.app.print_comment("Stopping Condition Monitoring.")
         else:                             #is off, turn on
             self.condition_monitor_button.config(bg='green', relief="sunken")
+            self.monitor_interval_field.component('entry').config(state='readonly') #dissalow entries
             self._condition_monitor_mode = True
             self.app.print_comment("Starting Condition Monitoring.")
             self._update_conditions_fields_loop()
@@ -1067,7 +1074,7 @@ class GUI:
             self.export_conditions_button.config(state='normal') #data can now be exported
             #reschedule loop
             interval_ms = interval*1000  #milliseconds
-            self.win.after(interval_ms, self._update_conditions_fields_loop)
+            self._condition_monitor_after_id = self.win.after(interval_ms, self._update_conditions_fields_loop)
         else:
             return
     

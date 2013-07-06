@@ -108,17 +108,11 @@ class Interface(Controller):
             #el_motor.shutdown()
             #az_motor.shutdown()
        
-class InteractiveInterface: 
-    def __init__(self,**kwargs):
-        self.band = None
-        self.controller = Interface(**kwargs)
         
-            
-def get_interface(interface_mode = 'threaded', **kwargs):
-    if   interface_mode == 'threaded':
-        return Interface(**kwargs)
-    elif interface_mode == 'interactive':
-        return InteractiveInterface(**kwargs)
+#------------------------------------------------------------------------------
+# INTERFACE CONFIGURATOR
+def get_interface(**kwargs):
+    return Interface(**kwargs)
             
     
     

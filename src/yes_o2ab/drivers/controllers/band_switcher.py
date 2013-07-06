@@ -145,13 +145,17 @@ class InteractiveInterface:
                                     adjust_speed = adjust_speed,
                                    )
         self.band = self.controller.band
-            
+        
+#------------------------------------------------------------------------------
+# INTERFACE CONFIGURATOR
 def get_interface(**kwargs):
     interface_mode = kwargs.pop('interface_mode','threaded')
     if   interface_mode == 'threaded':
         return Interface(**kwargs)
     elif interface_mode == 'interactive':
         return InteractiveInterface(**kwargs)
+    else:
+        raise ValueError("interface_mode '%s' is not valid" % interface_mode)
             
     
     

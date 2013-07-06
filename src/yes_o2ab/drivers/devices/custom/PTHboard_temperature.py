@@ -11,16 +11,16 @@ from automat.core.hwcontrol.devices.device import Device
 
 SENSOR_TO_VOLTAGE = 5.0/(4095)
 
-##load and interpolate the data curve
-#this_dir, _ = os.path.split(os.path.realpath(__file__))
-#VOLTAGE_TEMPERATURE_FILENAME = os.path.sep.join((this_dir,".csv"))
-#_volt_temp_data = loadtxt(VOLTAGE_TEMPERATURE_FILENAME, delimiter=',')
-#_T = _volt_temp_data[:,0]
-#_V = _volt_temp_data[:,1]
-#_volt_temp_interp = interpolate.splrep(_V,_T,k=3)
+#load and interpolate the data curve
+this_dir, _ = os.path.split(os.path.realpath(__file__))
+VOLTAGE_TEMPERATURE_FILENAME = os.path.sep.join((this_dir,"DC103G9G_volt_temp.csv"))
+_volt_temp_data = loadtxt(VOLTAGE_TEMPERATURE_FILENAME, delimiter=',')
+_T = _volt_temp_data[:,0]
+_V = _volt_temp_data[:,1]
+_volt_temp_interp = interpolate.splrep(_V,_T,k=3)
 
-#def volt_to_temp(V):
-#    return interpolate.splev(V,_volt_temp_interp) 
+def volt_to_temp(V):
+    return interpolate.splev(V,_volt_temp_interp)
 
 ################################################################################
 #class for thermistor object
@@ -43,7 +43,6 @@ class Interface(Device):
         "reads the temperature in degrees C"
         V = self.read_raw_voltage()
         V = V + self.V0 #apply voltage correction
-        raise NotImplementedError
         T = volt_to_temp(V)
         return T
         

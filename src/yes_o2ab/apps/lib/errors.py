@@ -33,3 +33,15 @@ class handleCrash(object):
                 sys.exit(exc.err_code)
             except AttributeError:
                 sys.exit(1)
+                
+##############################################################################
+ERRORLOG_FILENAME = '.error_log.txt~'
+class ErrorLogger(object):
+    def __init__(self):
+        self.file = None
+    def log(self, msg):
+        if self.file is None:
+            self.file = open(ERRORLOG_FILENAME, 'w')
+        self.file.write(msg)
+        self.file.flush()
+

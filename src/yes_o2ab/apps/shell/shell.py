@@ -1,4 +1,4 @@
-import time
+import time, traceback
 try:
     #first try new style >= 0.12 interactive shell
     from IPython.frontend.terminal.embed import InteractiveShellEmbed as IPYTHON_SHELL
@@ -10,6 +10,8 @@ from automat.core.threads.interruptible_thread import InterruptibleThread
 from automat.core.hwcontrol.config.configuration import Configuration
 import yes_o2ab.pkg_info
 
+from yes_o2ab.apps.lib.errors import ErrorLogger
+
 __BANNER  = ['*'*80,
              '* YES O2AB Shell',
              '*     author: cwv@yesinc.com',
@@ -18,6 +20,7 @@ __BANNER  = '\n'.join(__BANNER)
 
 DEFAULT_SEARCHPATHS = ['.', yes_o2ab.pkg_info.platform['config_filedir']]
 DEFAULT_INTERFACE_MODE = 'interactive'
+ERRORLOGGER = ErrorLogger()
 
 class Application:
     def __init__(self, commands = None):
@@ -46,7 +49,14 @@ class Application:
                 device = self.config.load_device(name)
                 print "success."
             except Exception, exc:
-                print "failed loading device '%s' with exception: %s" % (name, exc)
+                msg = "failed loading device '%s' with exception: %s" % (name, exc)
+                print msg
+                #tack on traceback for the log
+                log = ["*"*80]
+                log += [msg,traceback.format_exc()]
+                log = "\n".join(log)
+                ERRORLOGGER.log(log)
+                
 
     def _load_all_controllers(self):
         try:
@@ -57,10 +67,29 @@ class Application:
                     controller = self.config.load_controller(name)
                     print "success."
                 except Exception, exc:
-                    print "failed loading controller '%s' with exception: %s" % (name, exc)
+                    msg = "failed loading controller '%s' with exception: %s" % (name, exc)
+                    print msg
+                    #tack on traceback for the log
+                    log = ["*"*80]
+                    log += [msg,traceback.format_exc()]
+                    log = "\n".join(log)
+                    ERRORLOGGER.log(log)
         except KeyError:
             pass
 
+    def shutdown_hook(self, ipshell):
+        #find the available controllers
+        items = self.config._controller_cache.items()
+        items.sort()
+        for name, controller in items:
+            try:
+                #check if controller is running
+                if controller.thread_isAlive():
+                    print "Shutting Down Controller: %s..." % name
+                    controller.shutdown()
+            except AttributeError:
+                pass #ignore non-threaded controllers
+        print "Goodbye."
 
     def start_shell(self, msg = ""):
         status_msg = []
@@ -96,12 +125,14 @@ class Application:
         status_msg = '\n'.join(status_msg) 
         #start the shell
         ipshell = None
-        try:
-            ipshell = IPYTHON_SHELL(user_ns = self.user_ns, banner1 = status_msg) #FIXME change made for ipython >= 0.13
-            ipshell.mainloop() #FIXME change made for ipython >= 0.13
-        except TypeError: #FIXME support older versions
-            ipshell = IPYTHON_SHELL(user_ns = self.user_ns)
-            ipshell.mainloop(banner = status_msg)
+#        try:
+        ipshell = IPYTHON_SHELL(user_ns = self.user_ns, banner1 = status_msg) #FIXME change made for ipython >= 0.13
+        #set up hooks
+        ipshell.set_hook('shutdown_hook',self.shutdown_hook)
+        ipshell.mainloop() #FIXME change made for ipython >= 0.13
+#        except TypeError: #FIXME support older versions
+#            ipshell = IPYTHON_SHELL(user_ns = self.user_ns)
+#            ipshell.mainloop(banner = status_msg)
             
 ################################################################################
 # Commands definition

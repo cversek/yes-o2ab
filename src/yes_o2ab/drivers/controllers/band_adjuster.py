@@ -164,12 +164,16 @@ class Interface(Controller):
         finally:
             # FINISH UP --------------------------------------------------
             self.reset()
-      
-        
+  
+#------------------------------------------------------------------------------
+# INTERFACE CONFIGURATOR    
 def get_interface(**kwargs):
     interface_mode = kwargs.pop('interface_mode','threaded')
     if   interface_mode == 'threaded':
         return Interface(**kwargs)
+    else:
+        raise ValueError("interface_mode '%s' is not valid" % interface_mode)
+        
             
 ###############################################################################
 # TEST CODE - Run the Controller, collect events, and plot

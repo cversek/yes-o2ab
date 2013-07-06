@@ -47,11 +47,11 @@ class Interface(Controller):
                     sample['CC_power'] = camera.get_CC_power()
                 #read DAQ boards with mutex to avoid inter-thread/process collisions
                 with sensor_SA_press.daq._mutex: 
-                    sample['SA_press_raw_voltage'] = sensor_SA_press.read_raw_voltage()
+                    sample['SA_press'] = sensor_SA_press.read()
                 with sensor_SA_temp.daq._mutex: 
-                    sample['SA_temp_raw_voltage']  = sensor_SA_temp.read_raw_voltage()
+                    sample['SA_temp']  = sensor_SA_temp.read()
                 with sensor_SA_humid.daq._mutex: 
-                    sample['SA_humid_raw_voltage'] = sensor_SA_humid.read_raw_voltage()
+                    sample['SA_humid'] = sensor_SA_humid.read()
                 #remaining devices should be thermistors
                 for key,therm in sorted(devices.items()):
                     if key.startswith('therm'): #check just in case 
@@ -112,14 +112,11 @@ class Interface(Controller):
             self._send_event("CONDITION_MONITOR_ABORTED",info)
         finally: #Always clean up!
             self.reset()
-       
-def get_interface(interface_mode = 'threaded', **kwargs):
-    if   interface_mode == 'threaded':
-        return Interface(**kwargs)
-    elif interface_mode == 'interactive':
-        from temperature_monitor_interactive import get_interface as get_interface2
-        return get_interface2(interface_mode = 'interactive', **kwargs)
-            
+
+#------------------------------------------------------------------------------
+# INTERFACE CONFIGURATOR   
+def get_interface(**kwargs):
+    return Interface(**kwargs)
     
     
 ###############################################################################

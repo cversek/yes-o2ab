@@ -12,24 +12,17 @@ this_dir, _ = os.path.split(os.path.realpath(__file__))
 
 SENSOR_TO_VOLTAGE = 5.0/(4095)
 
-##load and interpolate the data curve
-#VOLTAGE_PRESSURE_FILENAME = os.path.sep.join((this_dir,".csv"))
-#_volt_press_data = loadtxt(VOLTAGE_PRESSURE_FILENAME, delimiter=',')
-#_P = _volt_press_data[:,0]
-#_V = _volt_press_data[:,1]
-#_volt_press_interp = interpolate.splrep(_P,_T,k=3)
-
-#def volt_to_press(V):
-#    return interpolate.splev(V,_volt_press_interp) 
-
 ################################################################################
 #class for analog pressure sensor
 class Interface(Device):
-    def __init__(self, daq, daq_channel, name, V0=0):
+    def __init__(self, daq, daq_channel, name, temp_sensor, A=0.0,B=1.0,C=0.0):
         self.daq = daq
         self.daq_channel = daq_channel        
         self.name = name
-        self.V0   = V0
+        self.temp_sensor = temp_sensor
+        self.A = A
+        self.B = B
+        self.C = C
         
     def initialize(self):
         pass
@@ -40,11 +33,10 @@ class Interface(Device):
         return idn
 
     def read(self):
-        "reads the pressure in millibar"
-        V = self.read_raw_voltage()
-        V = V + self.V0 #apply voltage correction
-        raise NotImplementedError
-        P = volt_to_temp(V)
+        "reads the pressure in inches Hg"
+        Vp = self.read_raw_voltage()
+        Vt = self.temp_sensor.read_raw_voltage()
+        P = self.A + self.B*(Vp + 0.4*(Vt - self.C))
         return P
         
     def read_raw_voltage(self):
@@ -58,21 +50,25 @@ class Interface(Device):
 #-------------------------------------------------------------------------------
 # INTERFACE CONFIGURATOR         
 def get_interface(**kwargs):
-    daq = kwargs.get('daq')
-    daq_channel = int(kwargs.get('daq_channel'))
-    name = kwargs.get('name')
-    V0   = float(kwargs.get('V0',0.0))
+    daq = kwargs.pop('daq')
+    daq_channel = int(kwargs.pop('daq_channel'))
+    name = kwargs.pop('name')
+    temp_sensor = kwargs.pop('temp_sensor')
+    A = float(kwargs.pop('A',0.0))
+    B = float(kwargs.pop('B',1.0))
+    C = float(kwargs.pop('C',0.0))
     iface = Interface(daq=daq,
                       daq_channel=daq_channel,
                       name=name,
-                      V0 = V0
+                      temp_sensor=temp_sensor,
+                      A=A,
+                      B=B,
+                      C=C,
+                      **kwargs
                      )
     return iface
 ################################################################################
 # TEST CODE
 ################################################################################
 if __name__ == "__main__":
-    V = linspace(4.0,1.0,100)
-    P = volt_to_temp(V)
-    for v,t in zip(V,P):
-        print "%0.3f\t%0.3f" % (v,t)
+    pass

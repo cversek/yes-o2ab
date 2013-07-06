@@ -125,6 +125,9 @@ class Interface(FLIDevice):
         "gets the Camera cooler's Cold-side (also CCD) temperature in degrees Celcius"
         pass
         #self._driver.set_temperature(temp)
+        
+    def shutdown(self):
+        pass 
       
 
 #------------------------------------------------------------------------------

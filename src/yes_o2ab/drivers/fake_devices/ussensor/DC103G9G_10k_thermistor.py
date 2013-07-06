@@ -20,7 +20,7 @@ _V = _volt_temp_data[:,1]
 _volt_temp_interp = interpolate.splrep(_V,_T,k=3)
 
 def volt_to_temp(V):
-    return interpolate.splev(V,_volt_temp_interp) 
+    return interpolate.splev(V,_volt_temp_interp)
 
 ################################################################################
 #class for thermistor object

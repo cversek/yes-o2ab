@@ -42,7 +42,7 @@ ENTRY_POINTS =  { 'gui_scripts':     [
                 }  
 
 
-DEFAULT_CONFIG_FILENAME          = 'testing.cfg'
+DEFAULT_CONFIG_PREFIX          = 'testing'
 EXAMPLE_CONFIG_FILENAME          = 'EXAMPLE_basic.cfg'
 LINUX_AUTOMAT_CONFIG_DIR         = '/etc/Automat'
 LINUX_YES_O2AB_CONFIG_DIR        = '/etc/Automat/yes_o2ab'
@@ -58,7 +58,8 @@ def setup_platform_config():
     system = platform.system()
     config_filedir               = None
     default_config_filepath      = None
-    example_calibration_filepath = None 
+    example_calibration_filepath = None
+    hostname = platform.node()
     print "detected system: %s" % system
     if system == 'Linux' or system == 'Darwin':
         if not os.path.isdir(LINUX_AUTOMAT_CONFIG_DIR):
@@ -66,14 +67,16 @@ def setup_platform_config():
         config_filedir = LINUX_YES_O2AB_CONFIG_DIR
         if not os.path.isdir(config_filedir):
             os.mkdir(config_filedir)
-        default_config_filepath = os.sep.join((config_filedir, DEFAULT_CONFIG_FILENAME))
+        config_filename = "%s_%s.cfg" % (DEFAULT_CONFIG_PREFIX,hostname)
+        default_config_filepath = os.sep.join((config_filedir, config_filename))
         if not os.path.isdir(LINUX_YES_O2AB_CALIBRATION_DIR):
             os.mkdir(LINUX_YES_O2AB_CALIBRATION_DIR)
         example_calibration_filepath = os.sep.join((LINUX_YES_O2AB_CALIBRATION_DIR, EXAMPLE_CALIBRATION_FILENAME))
     elif system == 'Windows':
         from win32com.shell import shellcon, shell
         appdata_path =  shell.SHGetFolderPath(0, shellcon.CSIDL_APPDATA, 0, 0)
-        default_config_filepath = os.sep.join((appdata_path, DEFAULT_CONFIG_FILENAME))
+        config_filename = "%s_%s.cfg" % (DEFAULT_CONFIG_PREFIX,hostname)
+        default_config_filepath = os.sep.join((appdata_path, config_filename))
     
     #if the configuration file does NOT exist, than copy the example file to that location
     if not os.path.isfile(default_config_filepath):
@@ -93,6 +96,7 @@ def setup_platform_config():
 
     #autogenerate the package information file
     platform_data['system']                  = system
+    platform_data['hostname']                = hostname
     platform_data['config_filedir']          = config_filedir
     platform_data['config_filepath'] = default_config_filepath
     pkg_info_filename   = os.sep.join((MAIN_PACKAGE_PATH,'pkg_info.py'))

@@ -51,8 +51,9 @@ class Interface(Controller):
             #self.set_windings('off')
             
     def seek_home(self):
+        self.seek_el_home()  #must do first!!!
         self.seek_az_home()
-        self.seek_el_home()
+        
         
     def goto_zenith(self):
         #start tracking time
@@ -82,7 +83,7 @@ class Interface(Controller):
         az_motor = self.devices['az_motor']
         az_home_pos = float(self.configuration['az_home_pos'])
         with az_motor.motor_controller._mutex:
-            az_motor.seek_home("CW")
+            az_motor.seek_home("CCW")
             az_motor.set_home()       #sets motor's ref. pos to zero
         self.az_pos = az_home_pos     #convert to sky coordinates
             
@@ -90,7 +91,7 @@ class Interface(Controller):
         el_motor = self.devices['el_motor']
         el_home_pos = float(self.configuration['el_home_pos'])
         with el_motor.motor_controller._mutex:
-            el_motor.seek_home("CCW") 
+            el_motor.seek_home("CW") 
             el_motor.set_home()       #sets motor's ref. pos to zero
         self.el_pos = el_home_pos     #convert to sky coordinates
         

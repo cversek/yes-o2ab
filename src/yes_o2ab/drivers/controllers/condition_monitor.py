@@ -37,9 +37,10 @@ class Interface(Controller):
                 sample = OrderedDict()
                 devices = self.devices.copy() #do not accidently edit in place!
                 camera = devices.pop('camera')
-                sensor_SA_press = devices.pop('sensor_SA_press')
-                sensor_SA_temp  = devices.pop('sensor_SA_temp')
-                sensor_SA_humid = devices.pop('sensor_SA_humid')
+                sensor_SA_press  = devices.pop('sensor_SA_press')
+                sensor_SA_temp   = devices.pop('sensor_SA_temp')
+                sensor_SA_humid  = devices.pop('sensor_SA_humid')
+                sensor_windspeed = devices.pop('sensor_windspeed')
                 #read the camera with mutex to avoid inter-thread/process collisions
                 with camera._mutex:
                     sample['CC_temp']  = camera.get_CC_temp()
@@ -52,6 +53,8 @@ class Interface(Controller):
                     sample['SA_temp']  = sensor_SA_temp.read()
                 with sensor_SA_humid.daq._mutex: 
                     sample['SA_humid'] = sensor_SA_humid.read()
+                with sensor_windspeed.freq_counter._mutex: 
+                    sample['windspeed'] = sensor_windspeed.read()
                 #remaining devices should be thermistors
                 for key,therm in sorted(devices.items()):
                     if key.startswith('therm'): #check just in case 

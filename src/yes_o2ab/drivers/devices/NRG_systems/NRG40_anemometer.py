@@ -1,8 +1,11 @@
 ###############################################################################
 #Dependencies
 #standard python
+from warnings import warn
 #Automat framework provided
 from automat.core.hwcontrol.devices.device import Device
+#3rd party hardware vendor, install from Internet
+from Phidgets.PhidgetException import PhidgetException
 ################################################################################
 
 

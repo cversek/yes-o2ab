@@ -25,9 +25,13 @@ class Interface(Device):
 
     def read(self):
         "reads the windspeed in MPH"
-        freq = self.freq_counter.get_frequency(self.channel)
-        s = self.MPH_per_Hz*freq + self.s0_MPH #apply calibration
-        return s
+        try:
+            freq = self.freq_counter.get_frequency(self.channel)
+            s = self.MPH_per_Hz*freq + self.s0_MPH #apply calibration
+            return s
+        except PhidgetException:
+            warn("Phidget Frequency Counter value is in an unknown state, reporting value as 0.0")
+            return 0.0
         
     def shutdown(self):
         self.freq_counter.shutdown()

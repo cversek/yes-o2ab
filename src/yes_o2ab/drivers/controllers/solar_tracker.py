@@ -232,6 +232,8 @@ class Interface(Controller):
                     return
         except (AbortInterrupt, Exception), exc:
             # END ABNORMALLY -----------------------------------------
+            self.az_pos = None
+            self.el_pos = None
             import traceback
             info = OrderedDict()
             info['timestamp'] = time.time()

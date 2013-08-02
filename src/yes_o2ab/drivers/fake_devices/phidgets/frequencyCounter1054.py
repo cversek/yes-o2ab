@@ -19,7 +19,7 @@ class Interface(Model):
         return "(!!!DEBUGGING FAKE) Phidget Frequency Counter 1054, Serial Number: %d" % self.serial_number
         
     def set_enabled(self, index, state = True):
-        self._phidget.setEnabled(index,state)
+        pass
         
     def get_frequency(self, index):
         return 0.0

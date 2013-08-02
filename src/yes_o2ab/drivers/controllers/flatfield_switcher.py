@@ -105,7 +105,7 @@ class Interface(Controller):
                 raise ValueError, "'state' must be 'in' or 'out'"
             #get the device
             flip_motor = self.devices['flip_motor']
-            out_angle  = int(self.configuration['out_angle'])
+            out_angle  = float(self.configuration['out_angle'])
             #send start event
             info = OrderedDict()
             info['from_state'] = self.state

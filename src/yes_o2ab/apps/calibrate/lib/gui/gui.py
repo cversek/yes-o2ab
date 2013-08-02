@@ -1170,5 +1170,3 @@ class GUI:
             #cache the GUI settings FIXME - is this necessary?
             self._cache_settings()
             self.win.destroy()
-            
-               

@@ -44,14 +44,14 @@ class ConditionFields(Frame):
                                                  )
         self.fields['CC_power'] = Pmw.EntryField(parent,
                                                  labelpos    = 'w',
-                                                 label_text  = "              CCD Cooler (CC) Power:",
+                                                 label_text  = "          CCD Cooler (CC) Power [%]:",
                                                  label_font  = FIELD_LABEL_FONT,
                                                  entry_width = CONDITION_FIELDS_ENTRY_WIDTH,
                                                  entry_state = 'readonly',
                                                  )
         self.fields['SA_press'] = Pmw.EntryField(parent,
                                                  labelpos    = 'w',
-                                                 label_text  = "             Spect. Air (SA) Press.:",
+                                                 label_text  = "      Spect. Air (SA) Press. [inHg]:",
                                                  label_font  = FIELD_LABEL_FONT,
                                                  entry_width = CONDITION_FIELDS_ENTRY_WIDTH,
                                                  entry_state = 'readonly',
@@ -65,7 +65,7 @@ class ConditionFields(Frame):
                                                  )
         self.fields['SA_humid'] = Pmw.EntryField(parent,
                                                  labelpos    = 'w',
-                                                 label_text  = "             Spect. Air (SA) Humid.:",
+                                                 label_text  = "       Spect. Air (SA) Humid. [%RH]:",
                                                  label_font  = FIELD_LABEL_FONT,
                                                  entry_width = CONDITION_FIELDS_ENTRY_WIDTH,
                                                  entry_state = 'readonly',
@@ -126,6 +126,14 @@ class ConditionFields(Frame):
                                                  entry_width = CONDITION_FIELDS_ENTRY_WIDTH,
                                                  entry_state = 'readonly',
                                                  )
+        self.fields['windspeed']  = Pmw.EntryField(parent,
+                                                 labelpos    = 'w',
+                                                 label_text  = "                  Wind Speed (MPH).:",
+                                                 label_font  = FIELD_LABEL_FONT,
+                                                 entry_width = CONDITION_FIELDS_ENTRY_WIDTH,
+                                                 entry_state = 'readonly',
+                                                 )
+                                                 
     def pack(self,*args,**kwargs):
         self.sample_datetime_field.pack(*args,**kwargs)
         for key, widget in self.fields.items():

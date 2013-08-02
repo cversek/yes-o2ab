@@ -28,6 +28,7 @@ class ConditionsDataSet(DataSet):
                    'EB_temp',
                    'RA_temp',
                    'OA_temp',
+                   'windspeed',
                   ]
         if metadata is None:
             metadata = OrderedDict()

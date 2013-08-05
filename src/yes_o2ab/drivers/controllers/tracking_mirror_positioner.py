@@ -25,6 +25,8 @@ class Interface(Controller):
     def initialize(self):
         """Initialize motors and seek the home position.
         """
+        if not "thread_initialized" in self._controller_mode_set:
+            self.thread_init()
         try:
             #get dependent devices and controllers
             el_motor = self.devices['el_motor']

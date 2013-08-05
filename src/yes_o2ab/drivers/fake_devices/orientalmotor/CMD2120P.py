@@ -112,6 +112,7 @@ class Interface(Model):
                    angle,
                    angular_start_speed     = None, 
                    angular_operating_speed = None,
+                   blocking = True,
                   ):
         "move to an absolute angle (degrees), at angular speed (degrees/second)"
         if angular_start_speed is None:
@@ -128,6 +129,8 @@ class Interface(Model):
                                             start_speed     = start_speed,
                                             operating_speed = operating_speed,
                                            )
+        if blocking:
+            self.wait_on_move()
         #send back the actual angle for the closest position        
         return pos*self.degrees_per_step
     
@@ -161,6 +164,9 @@ class Interface(Model):
         self._limit_sensor_config['direction'] = direction
         self.motor_controller.seek_home(**self._limit_sensor_config)         
     
+    def is_moving(self):
+        return self.motor_controller.is_moving()
+        
     def wait_on_move(self):
         self.motor_controller.wait_on_move()
         

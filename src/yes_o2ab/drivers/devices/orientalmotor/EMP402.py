@@ -155,7 +155,7 @@ class Interface(Model, SerialCommunicationsMixIn):
         operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)         
         self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz    
         #start the mechanical home seeking
-        self._send_command("MHOME%d" % axis)        
+        self._send_command("MHOME%d" % axis)
     
     def stop(self, axis = None):
         if axis is None:

@@ -17,19 +17,22 @@ class Interface(Controller):
     def __init__(self,**kwargs):
         self.az_pos = None
         self.el_pos = None
+        self.az_target = None
+        self.el_target = None
         self.is_initialized = False
         Controller.__init__(self, **kwargs)
         
     def initialize(self):
+        """Initialize motors and seek the home position.
+        """
         try:
             #get dependent devices and controllers
-            solar_ephemeris = self.devices['solar_ephemeris']
             el_motor = self.devices['el_motor']
             az_motor = self.devices['az_motor']
             #send initialize event
             info = OrderedDict()
             info['timestamp'] = time.time()
-            self._send_event("SOLAR_TRACKER_INITIALIZE_STARTED", info)
+            self._send_event("TRACKING_MIRROR_POSITIONER_INITIALIZE_STARTED", info)
             #initialize motor devices
             self.initialize_devices()
             el_motor.configure_limit_sensors(sensor_mode=2) # 2 sensor mode
@@ -41,13 +44,13 @@ class Interface(Controller):
             #end initialize normally
             info = OrderedDict()
             info['timestamp'] = time.time()
-            self._send_event("SOLAR_TRACKER_INITIALIZE_COMPLETED", info)
+            self._send_event("TRACKING_MIRROR_POSITIONER_INITIALIZE_COMPLETED", info)
         except RuntimeError, exc: #can't get mutex locks (thread or process level)
             #send initialize end
             info = OrderedDict()
             info['timestamp'] = time.time()
             info['exception'] = exc
-            self._send_event("SOLAR_TRACKER_INITIALIZE_FAILED", info)
+            self._send_event("TRACKING_MIRROR_POSITIONER_INITIALIZE_FAILED", info)
         finally:
             pass
             #ensure windings are off
@@ -55,101 +58,36 @@ class Interface(Controller):
             
     def seek_home(self):
         assert self.is_initialized
+        az_motor = self.devices['az_motor']
+        el_motor = self.devices['el_motor']
+        #get configuration
+        az_home_pos = float(self.configuration['az_home_pos'])
+        el_home_pos = float(self.configuration['el_home_pos'])
         #send start event
         info = OrderedDict()
         info['timestamp'] = time.time()
-        self._send_event("SOLAR_TRACKER_SEEK_HOME_STARTED", info)
+        self._send_event("TRACKING_MIRROR_POSITIONER_SEEK_HOME_STARTED", info)
         #ensure windings are off FIXME do we need this?
         #self.set_windings('on')
-        self._seek_el_home()  #must do first, so snorkel doesn't swing azimuth at wide angle
-        self._seek_az_home()
+        #must do elevation first, so snorkel doesn't swing azimuth at wide angle
+        #these actions should be blocking
+        with el_motor.motor_controller._mutex:
+            el_motor.seek_home("CW") 
+            el_motor.set_home()       #sets motor's ref. pos to zero
+        with az_motor.motor_controller._mutex:
+            az_motor.seek_home("CCW")
+            az_motor.set_home()       #sets motor's ref. pos to zero
+        self.el_pos = el_home_pos     #convert to sky coordinates
+        self.az_pos = az_home_pos     #convert to sky coordinates
         #end event
         self.is_initialized = True
         info = OrderedDict()
         info['timestamp'] = time.time()
         info['az_pos'] = self.az_pos
         info['el_pos'] = self.el_pos
-        self._send_event("SOLAR_TRACKER_SEEK_HOME_COMPLETED", info)
+        self._send_event("TRACKING_MIRROR_POSITIONER_SEEK_HOME_COMPLETED", info)
         
-    def goto_zenith(self, blocking = True):
-        assert self.is_initialized
-        #send start event
-        info = OrderedDict()
-        info['timestamp'] = time.time()
-        self._send_event("SOLAR_TRACKER_GOTO_ZENITH_STARTED", info)
-        #ensure windings are off FIXME do we need this?
-        #self.set_windings('on')
-        #start tracking time
-        t0 = time.time()
-        self.goto_el_angle(90, blocking = blocking) #straight up
-        t1 = time.time()
-        used_t = t1-t0
-        #end event
-        self.is_initialized = True
-        info = OrderedDict()
-        info['timestamp'] = time.time()
-        info['az_pos']    = self.az_pos
-        info['el_pos']    = self.el_pos
-        info['used_time'] = used_t
-        self._send_event("SOLAR_TRACKER_GOTO_ZENITH_COMPLETED", info)
-        return used_t
-        
-    def goto_sun(self, seconds_ahead = 0, blocking = True):
-        """goto to where the sun is predicted to be 'seconds_ahead' from now"""
-        assert self.is_initialized
-        #get the position of the sun from the ephemeris
-        solar_ephemeris = self.devices['solar_ephemeris']
-        #self.set_windings('on')
-        #start tracking time
-        t0 = time.time()
-        #get current sun location
-        jd_now, el_now, az_now = solar_ephemeris.update()
-        #predict where sun will be at next control point
-        jd_future, el_future, az_future = solar_ephemeris.predict(seconds_ahead, jd_now)
-        #send start event
-        info = OrderedDict()
-        info['timestamp'] = t0
-        info['seconds_ahead'] = seconds_ahead
-        info['jd_now']    = jd_now
-        info['az_now']    = az_now
-        info['el_now']    = el_now
-        info['jd_future'] = jd_future
-        info['az_future'] = az_future
-        info['el_future'] = el_future
-        self._send_event("SOLAR_TRACKER_GOTO_SUN_STARTED", info)
-        #ensure windings are off FIXME do we need this?
-        self._goto_az_angle(az_future, blocking = blocking)
-        self._goto_el_angle(el_future, blocking = blocking)
-        t1 = time.time()
-        used_t = t1-t0
-        #send end event
-        info = OrderedDict()
-        info['timestamp'] = t1
-        info['az_pos']    = self.az_pos
-        info['el_pos']    = self.el_pos
-        info['used_time'] = used_t
-        self._send_event("SOLAR_TRACKER_GOTO_SUN_COMPLETED", info)
-        return used_t
-        
-    def _seek_az_home(self):
-        assert self.is_initialized
-        az_motor = self.devices['az_motor']
-        az_home_pos = float(self.configuration['az_home_pos'])
-        with az_motor.motor_controller._mutex:
-            az_motor.seek_home("CCW")
-            az_motor.set_home()       #sets motor's ref. pos to zero
-        self.az_pos = az_home_pos     #convert to sky coordinates
-            
-    def _seek_el_home(self):
-        assert self.is_initialized
-        el_motor = self.devices['el_motor']
-        el_home_pos = float(self.configuration['el_home_pos'])
-        with el_motor.motor_controller._mutex:
-            el_motor.seek_home("CW") 
-            el_motor.set_home()       #sets motor's ref. pos to zero
-        self.el_pos = el_home_pos     #convert to sky coordinates
-        
-    def _goto_az_angle(self, angle, **kwargs):
+    def _goto_az_angle(self, angle, blocking = True, **kwargs):
         assert self.is_initialized
         az_motor = self.devices['az_motor']
         az_home_pos = float(self.configuration['az_home_pos'])
@@ -183,52 +121,63 @@ class Interface(Controller):
 #            else:
 #                raise ValueError, "'state' must be 'on' or 'off'"
 #   
-    def start_tracking(self, blocking = False, **kwargs):
+    def goto(self, az_target = None, el_target = None, blocking = False, **kwargs):
+        self.az_target = az_target
+        self.el_target = el_target
+        self.thread_init(**kwargs) #gets the threads working
         if blocking:
             self.run()
         else:
-            self.thread_init(**kwargs) #gets the threads working
             self.start()
         
     def main(self):
         ##get dependent devices and controllers
-        solar_ephemeris = self.devices['solar_ephemeris']
         el_motor = self.devices['el_motor']
         az_motor = self.devices['az_motor']
         #get configuration
-        control_point_interval = float(self.configuration.get('control_point_interval', CONTROL_POINT_INTERVAL_DEFAULT))
+        el_home_pos = float(self.configuration['el_home_pos'])
+        az_home_pos = float(self.configuration['az_home_pos'])
+        update_query_delay = float(self.configuration['update_query_delay'])
         #goto_speed             = float(self.configuration.get('goto_speed', GOTO_SPEED_DEFAULT))
+        #get current target parameters
+        el_target = self.el_target
+        az_target = self.az_target
         try:
             # INITIALIZE -------------------------------------------------------
             if not self.is_initialized:
                 self.initialize()
-            self.goto_sun()
             # START TRACKING LOOP  -----------------------------------          
             info = OrderedDict()
             info['timestamp'] = time.time()
-            #info['control_point_interval'] = control_point_interval
-            #info['goto_speed'] = goto_speed
-            self._send_event("SOLAR_TRACKER_STARTED",info)
-            while True:
+            info['el_target'] = el_target
+            info['az_target'] = az_target
+            self._send_event("TRACKING_MIRROR_POSITIONER_STARTED",info)
+            self._thread_abort_breakout_point()
+            #move the motors simultaneously
+            el_motor_angle = el_target - el_home_pos
+            az_motor_angle = az_target - az_home_pos
+            el_motor.goto_angle(el_motor_angle, blocking = False)
+            az_motor.goto_angle(az_motor_angle, blocking = False)
+            while el_motor.is_moving() or az_motor.is_moving():
                 self._thread_abort_breakout_point()
-                #goto where the sun will be at the control point
-                used_t = self.goto_sun(seconds_ahead = control_point_interval)
+                self.sleep(update_query_delay)
                 self._thread_abort_breakout_point()
-                # SLEEP UNTIL NEXT CYCLE  ----------------------------
-                sleep_time = control_point_interval - used_t
+                #query the motors for their positions
+                el_new_motor_angle = el_motor.get_position()
+                self.el_pos = el_new_motor_angle + el_home_pos
+                self._thread_abort_breakout_point()
+                az_new_motor_angle = az_motor.get_position()
+                self.az_pos = az_new_motor_angle + az_home_pos
                 info = OrderedDict()
-                info['timestamp']  = time.time()
-                info['sleep_time'] = sleep_time
-                self._send_event("SOLAR_TRACKER_SLEEPING",info)
-                if sleep_time > 0.0:
-                    self.sleep(sleep_time)
-                #check if client requests stop
-                if self._thread_check_stop_event():
-                    # END NORMALLY -----------------------------------
-                    info = OrderedDict()
-                    info['timestamp'] = time.time()
-                    self._send_event("SOLAR_TRACKER_STOPPED",info)
-                    return
+                info['timestamp'] = time.time()
+                info['el_pos']    = self.el_pos
+                info['az_pos']    = self.az_pos
+                self._send_event("TRACKING_MIRROR_POSITIONER_UPDATE",info)
+            # END NORMALLY -----------------------------------
+            info = OrderedDict()
+            info['timestamp'] = time.time()
+            self._send_event("TRACKING_MIRROR_POSITIONER_STOPPED",info)
+            return
         except (AbortInterrupt, Exception), exc:
             # END ABNORMALLY -----------------------------------------
             self.az_pos = None
@@ -239,7 +188,7 @@ class Interface(Controller):
             info['reason']    = exc
             if not isinstance(exc, AbortInterrupt): 
                 info['traceback'] = traceback.format_exc()
-            self._send_event("SOLAR_TRACKER_ABORTED",info)
+            self._send_event("TRACKING_MIRROR_POSITIONER_ABORTED",info)
         finally: #Always clean up!
             #halts any moving motors
             el_motor.shutdown()

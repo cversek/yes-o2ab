@@ -52,7 +52,7 @@ MONITOR_INTERVAL_MIN     = 10   #seconds
 MONITOR_INTERVAL_MAX     = 9999 #seconds
 
 BUTTON_WIDTH = 20
-SECTION_PADY = 5
+SECTION_PADY = 2
 CONFIRMATION_TEXT_DISPLAY_TEXT_HEIGHT = 40
 CONFIRMATION_TEXT_DISPLAY_TEXT_WIDTH  = 80
 
@@ -106,7 +106,8 @@ class GUI:
         #handle the user hitting the 'X' button
         self.win.protocol("WM_DELETE_WINDOW", self._close)
         #FIXME bind some debugging keystrokes to the window
-        #self.win.bind('<Control-f>', lambda e: self.app.force_experiment())        
+        #self.win.bind('<Control-f>', lambda e: self.app.force_experiment()
+        #-----------------------------------------------------------------------
         #build the left panel
         left_panel = tk.Frame(win)
         #capture controls
@@ -228,44 +229,37 @@ class GUI:
                                                           entry_state = 'readonly',
                                                           )
         self.focus_adjust_position_field.pack(side='top', anchor="w", expand='no')
-        
-        #Condition Monitoring
-        self._condition_monitor_mode = False
-        self._condition_monitor_after_id = None
+        #-----------------------------------------------------------------------
+        #tracking controls
         tk.Label(left_panel, pady = SECTION_PADY).pack(side='top',fill='x', anchor="nw")
-        tk.Label(left_panel, text="Condition Monitoring:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
-        self.condition_monitor_button = tk.Button(left_panel,text='Monitor',command = self.condition_monitor_mode_toggle, width = BUTTON_WIDTH)
-        self.condition_monitor_button.pack(side='top', anchor="nw")
-        self.monitor_interval_field = Pmw.EntryField(left_panel,
-                                                     labelpos    = 'e',
-                                                     label_text  ="interval [s] (min=10,max=9999)",
-                                                     label_font  = FIELD_LABEL_FONT,
-                                                     value       = MONITOR_INTERVAL_DEFAULT,
-                                                     entry_width = 4,
-                                                     validate    = Validator(_min=MONITOR_INTERVAL_MIN,
-                                                                             _max=MONITOR_INTERVAL_MAX,
-                                                                            converter=int),
-                                                     )
-        self.monitor_interval_field.pack(side='top', anchor="w", expand='no')
-        tk.Label(left_panel, pady = SECTION_PADY//2).pack(side='top',fill='x', anchor="nw")
-        self.condition_fields = ConditionFields(left_panel)
-        self.condition_fields.pack(side='top', anchor="w", expand='no')
+        tk.Label(left_panel, text="Tracking Controls:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
+        TRACKING_FIELDS_ENTRY_WIDTH = 9
+        self.tracking_fields = OrderedDict()
+        self.tracking_fields['azimuth']   = Pmw.EntryField(left_panel,
+                                                         labelpos    = 'w',
+                                                         label_text  = "  azimuth:",
+                                                         label_font  = FIELD_LABEL_FONT,
+                                                         entry_width = TRACKING_FIELDS_ENTRY_WIDTH,
+                                                         entry_state = 'readonly',
+                                                         )
+        self.tracking_fields['elevation'] = Pmw.EntryField(left_panel,
+                                                         labelpos    = 'w',
+                                                         label_text  = "elevation:",
+                                                         label_font  = FIELD_LABEL_FONT,
+                                                         entry_width = TRACKING_FIELDS_ENTRY_WIDTH,
+                                                         entry_state = 'readonly',
+                                                         )
+
+        for key, widget in self.tracking_fields.items():
+            widget.pack(side='top', anchor="w", expand='no')
         
-        #Data Processing
-        tk.Label(left_panel, pady = SECTION_PADY).pack(side='top',fill='x', anchor="nw")
-        tk.Label(left_panel, text="Data Processing:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
-        self.background_filename_field = Pmw.EntryField(left_panel,
-                                                        labelpos='w',
-                                                        label_text="Background Filename:",
-                                                        label_font = FIELD_LABEL_FONT,
-                                                        #entry_width=20,
-                                                        entry_state = 'readonly',
-                                                        )
-        self.background_filename_field.pack(side='top', fill='x',anchor="nw", expand='no')
-                          
+        self.tracking_goto_home_button = tk.Button(left_panel,text='Goto Home',command = lambda: self.tracking_goto('home'), width = BUTTON_WIDTH)
+        self.tracking_goto_home_button.pack(side='top', anchor="nw")
+        #finish the left panel
         left_panel.pack(fill='y',expand='no',side='left', padx = 10)
+        #-----------------------------------------------------------------------
         #build the middle panel - a tabbed notebook
-        mid_panel = tk.Frame(win)
+        mid_panel = tk.Frame(win, padx=10)
         nb        = ttk.Notebook(mid_panel)
         nb.pack(fill='both', expand='yes',side='right')
         tab1 = tk.Frame(nb)
@@ -308,12 +302,52 @@ class GUI:
         self.clear_conditions_data_button = tk.Button(tab4,text='Clear Data',command = self.clear_conditions_data, width = BUTTON_WIDTH)
         self.clear_conditions_data_button.pack(side='left',anchor="sw")
         mid_panel.pack(fill='both', expand='yes',side='left')
-        
+        #-----------------------------------------------------------------------
         #build the right panel
         right_panel = tk.Frame(win)
+        
+        #Condition Monitoring
+        self._condition_monitor_mode = False
+        self._condition_monitor_after_id = None
+        tk.Label(right_panel, pady = SECTION_PADY).pack(side='top',fill='x', anchor="nw")
+        tk.Label(right_panel, text="Condition Monitoring:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
+        self.condition_monitor_button = tk.Button(right_panel,text='Monitor',command = self.condition_monitor_mode_toggle, width = BUTTON_WIDTH)
+        self.condition_monitor_button.pack(side='top', anchor="nw")
+        self.monitor_interval_field = Pmw.EntryField(right_panel,
+                                                     labelpos    = 'e',
+                                                     label_text  ="interval [s] (min=10,max=9999)",
+                                                     label_font  = FIELD_LABEL_FONT,
+                                                     value       = MONITOR_INTERVAL_DEFAULT,
+                                                     entry_width = 4,
+                                                     validate    = Validator(_min=MONITOR_INTERVAL_MIN,
+                                                                             _max=MONITOR_INTERVAL_MAX,
+                                                                              converter=int),
+                                                     )
+        self.monitor_interval_field.pack(side='top', anchor="w", expand='no')
+        tk.Label(right_panel, pady = SECTION_PADY//2).pack(side='top',fill='x', anchor="nw")
+        self.condition_fields = ConditionFields(right_panel)
+        self.condition_fields.pack(side='top', anchor="w", expand='no')
+        
+        #Data Processing
+        tk.Label(right_panel, pady = SECTION_PADY).pack(side='top',fill='x', anchor="nw")
+        tk.Label(right_panel, text="Data Processing:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
+        self.background_filename_field = Pmw.EntryField(right_panel,
+                                                        labelpos='w',
+                                                        label_text="Background Filename:",
+                                                        label_font = FIELD_LABEL_FONT,
+                                                        #entry_width=20,
+                                                        entry_state = 'readonly',
+                                                        )
+        self.background_filename_field.pack(side='top', fill='x',anchor="nw", expand='no')
+        
+        # Events text display
+        tk.Label(right_panel, pady = SECTION_PADY).pack(side='top',fill='x', anchor="nw")
+        tk.Label(right_panel, text="Events Monitoring:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
         self.text_display  = TextDisplayBox(right_panel,text_height=15, buffer_size = TEXT_BUFFER_SIZE)
         self.text_display.pack(side='left',fill='both',expand='yes')
+        #finish building the right panel
         right_panel.pack(fill='both', expand='yes',side='right')
+        #-----------------------------------------------------------------------
         
         #build the filter selection dialog
         self.filter_select_dialog = FilterSelectDialog(

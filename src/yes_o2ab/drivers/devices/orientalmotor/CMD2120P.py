@@ -171,6 +171,9 @@ class Interface(Model):
         if blocking:
             self.wait_on_move()
     
+    def is_moving(self):
+        return self.motor_controller.is_moving()
+    
     def wait_on_move(self):
         self.motor_controller.wait_on_move()
         

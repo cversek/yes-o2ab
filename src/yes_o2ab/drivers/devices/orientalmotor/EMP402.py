@@ -98,6 +98,7 @@ class Interface(Model, SerialCommunicationsMixIn):
     def goto_position(self,
                       axis,
                       pos,
+                      direction = 'CW',
                       start_speed     = SPEED_DEFAULT,
                       operating_speed = SPEED_DEFAULT,
                      ):
@@ -106,7 +107,12 @@ class Interface(Model, SerialCommunicationsMixIn):
         self._send_command("VS%d %d" % (axis,start_speed))         #p. 85, start speed Hz 
         operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)         
         self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz    
-        self._send_command("H%d +" % axis)                         #p. 70, set direction flag
+        if direction == 'CW':
+            self._send_command("H%d +" % axis)                     #p. 70, set direction flag
+        elif direction == 'CCW':
+            self._send_command("H%d -" % axis)                     #p. 70, set direction flag
+        else:
+            raise ValueError("Invalid direction '%s', must be 'CW' or 'CCW'" % direction)
         self._send_command("D%d %d" % (axis, pos))                 #p. 64, steps to rotate
         #start the motion, absolute
         self._send_command("ABS%d" % axis)

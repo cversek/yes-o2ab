@@ -110,6 +110,7 @@ class Interface(Model):
 
     def goto_angle(self,
                    angle,
+                   direction = 'CW',
                    angular_start_speed     = None, 
                    angular_operating_speed = None,
                    blocking = True,

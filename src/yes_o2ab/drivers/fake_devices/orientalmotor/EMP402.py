@@ -72,6 +72,7 @@ class Interface(Model, SerialCommunicationsMixIn):
     def goto_position(self,
                       axis,
                       pos,
+                      direction = 'CW',
                       start_speed     = SPEED_DEFAULT,
                       operating_speed = SPEED_DEFAULT,
                      ):

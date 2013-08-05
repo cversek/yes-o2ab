@@ -110,6 +110,7 @@ class Interface(Model):
 
     def goto_angle(self,
                    angle,
+                   direction = 'CW',
                    angular_start_speed     = None,
                    angular_operating_speed = None,
                    blocking = True,
@@ -127,6 +128,7 @@ class Interface(Model):
         self.motor_controller.goto_position(
                                             axis = self.axis,
                                             pos = pos,
+                                            direction = direction,
                                             start_speed     = start_speed,
                                             operating_speed = operating_speed,
                                            )

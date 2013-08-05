@@ -142,24 +142,38 @@ class Interface(Controller):
         #get current target parameters
         el_target = self.el_target
         az_target = self.az_target
+        el_direction = None
+        az_direction = None
         try:
             # INITIALIZE -------------------------------------------------------
             if not self.is_initialized:
                 self.initialize()
             # START TRACKING LOOP  -----------------------------------          
-            info = OrderedDict()
-            info['timestamp'] = time.time()
-            info['el_target'] = el_target
-            info['az_target'] = az_target
-            self._send_event("TRACKING_MIRROR_POSITIONER_STARTED",info)
             self._thread_abort_breakout_point()
             #move the motors simultaneously
             if not el_target is None:
                 el_motor_angle = el_target - el_home_pos
-                el_motor.goto_angle(el_motor_angle, blocking = False)
+                if el_target > self.el_pos:
+                    el_direction = 'CW'
+                else:
+                    el_direction = 'CCW'
+                el_motor.goto_angle(el_motor_angle, direction = el_direction, blocking = False)
             if not az_target is None:
                 az_motor_angle = az_target - az_home_pos
-                az_motor.goto_angle(az_motor_angle, blocking = False)
+                if az_target > self.az_pos:
+                    az_direction = 'CW'
+                else:
+                    az_direction = 'CCW'
+                az_motor.goto_angle(az_motor_angle, direction = az_direction, blocking = False)
+            info = OrderedDict()
+            info['timestamp'] = time.time()
+            info['el_target'] = el_target
+            info['az_target'] = az_target
+            info['el_pos']    = self.el_pos
+            info['az_pos']    = self.az_pos
+            info['el_direction'] = el_direction
+            info['az_direction'] = az_direction
+            self._send_event("TRACKING_MIRROR_POSITIONER_STARTED",info)
             while el_motor.is_moving() or az_motor.is_moving():
                 self._thread_abort_breakout_point()
                 self.sleep(update_query_delay)

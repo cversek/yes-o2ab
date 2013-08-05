@@ -190,8 +190,15 @@ class Interface(Controller):
                 info['az_pos']    = self.az_pos
                 self._send_event("TRACKING_MIRROR_POSITIONER_UPDATE",info)
             # END NORMALLY -----------------------------------
+            #query the motors for their final positions
+            el_new_motor_angle = el_motor.get_position()
+            self.el_pos = el_new_motor_angle + el_home_pos
+            az_new_motor_angle = az_motor.get_position()
+            self.az_pos = az_new_motor_angle + az_home_pos
             info = OrderedDict()
             info['timestamp'] = time.time()
+            info['el_pos']    = self.el_pos
+            info['az_pos']    = self.az_pos
             self._send_event("TRACKING_MIRROR_POSITIONER_STOPPED",info)
             return
         except (AbortInterrupt, Exception), exc:

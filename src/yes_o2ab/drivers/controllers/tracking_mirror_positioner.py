@@ -154,10 +154,12 @@ class Interface(Controller):
             self._send_event("TRACKING_MIRROR_POSITIONER_STARTED",info)
             self._thread_abort_breakout_point()
             #move the motors simultaneously
-            el_motor_angle = el_target - el_home_pos
-            az_motor_angle = az_target - az_home_pos
-            el_motor.goto_angle(el_motor_angle, blocking = False)
-            az_motor.goto_angle(az_motor_angle, blocking = False)
+            if not el_target is None:
+                el_motor_angle = el_target - el_home_pos
+                el_motor.goto_angle(el_motor_angle, blocking = False)
+            if not az_target is None:
+                az_motor_angle = az_target - az_home_pos
+                az_motor.goto_angle(az_motor_angle, blocking = False)
             while el_motor.is_moving() or az_motor.is_moving():
                 self._thread_abort_breakout_point()
                 self.sleep(update_query_delay)

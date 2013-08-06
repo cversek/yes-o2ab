@@ -859,10 +859,10 @@ class GUI:
         
     def _wait_on_tracking_goto_loop(self):
         #check the controller states
-        solar_tracker  = self.app.load_controller('solar_tracker')
+        tracking_mirror_positioner  = self.app.load_controller('tracking_mirror_positioner')
         #read out all pending events
-        while not solar_tracker.event_queue.empty():
-            event, info = solar_tracker.event_queue.get()
+        while not tracking_mirror_positioner.event_queue.empty():
+            event, info = tracking_mirror_positioner.event_queue.get()
             self.print_event(event,info)
             if event == 'TRACKING_MIRROR_POSITIONER_UPDATE':
                 az_pos = info['az_pos']
@@ -870,7 +870,7 @@ class GUI:
                 self.tracking_fields['azimuth'].setvalue(az_pos)
                 self.tracking_fields['elevation'].setvalue(el_pos)
         #check thread state
-        if solar_tracker.thread_isAlive():
+        if tracking_mirror_positioner.thread_isAlive():
             #reschedule loop
             self.win.after(LOOP_DELAY,self._wait_on_tracking_goto_loop)
         else:

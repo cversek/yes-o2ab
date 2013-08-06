@@ -54,6 +54,30 @@ class Interface(Controller):
             self._send_event("SOLAR_TRACKER_INITIALIZE_FAILED", info)
         finally:
             pass
+    
+    def seek_home(self):
+        assert self.is_initialized
+        tracking_mirror_positioner = self.controllers['tracking_mirror_positioner']
+        #send start event
+        info = OrderedDict()
+        info['timestamp'] = time.time()
+        self._send_event("SOLAR_TRACKER_SEEK_HOME_STARTED", info)
+        #ensure windings are off FIXME do we need this?
+        #self.set_windings('on')
+        #start tracking time
+        t0 = time.time()
+        tracking_mirror_positioner.seek_home()
+        t1 = time.time()
+        used_t = t1-t0
+        #end event
+        self.is_initialized = True
+        info = OrderedDict()
+        info['timestamp'] = time.time()
+        info['az_pos']    = self.az_pos
+        info['el_pos']    = self.el_pos
+        info['used_time'] = used_t
+        self._send_event("SOLAR_TRACKER_SEEK_HOME_COMPLETED", info)
+        return used_t
         
     def goto_zenith(self, blocking = True):
         assert self.is_initialized

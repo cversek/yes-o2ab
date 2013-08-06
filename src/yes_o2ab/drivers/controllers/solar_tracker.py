@@ -27,9 +27,9 @@ class Interface(Controller):
         tracking_mirror_positioner = self.controllers['tracking_mirror_positioner']
         tracking_mirror_positioner.thread_init(**kwargs)
         
-    def initialize(self):
+    def initialize(self, **kwargs):
         if not "thread_initialized" in self._controller_mode_set:
-            self.thread_init()
+            self.thread_init(**kwargs)
         try:
             #get dependent devices and controllers
             solar_ephemeris = self.devices['solar_ephemeris']

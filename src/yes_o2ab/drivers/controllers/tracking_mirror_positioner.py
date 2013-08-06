@@ -24,11 +24,11 @@ class Interface(Controller):
         self.is_initialized = False
         Controller.__init__(self, **kwargs)
         
-    def initialize(self):
+    def initialize(self, **kwargs):
         """Initialize motors and seek the home position.
         """
         if not "thread_initialized" in self._controller_mode_set:
-            self.thread_init()
+            self.thread_init(**kwargs)
         try:
             #get dependent devices and controllers
             el_motor = self.devices['el_motor']

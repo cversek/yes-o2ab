@@ -56,6 +56,7 @@ class Application:
                         'filter_switcher', 
                         'band_adjuster',  #FIXME can't be initialized with known state!
                         'focus_adjuster',
+                        'solar_tracker',
                        ]
     def __init__(self, 
                  intro_msg       = None, 

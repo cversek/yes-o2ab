@@ -17,6 +17,8 @@ class Interface(Controller):
     def __init__(self,**kwargs):
         self.az_pos = None
         self.el_pos = None
+        self.az_home_pos = None
+        self.el_home_pos = None
         self.az_target = None
         self.el_target = None
         self.is_initialized = False
@@ -31,6 +33,9 @@ class Interface(Controller):
             #get dependent devices and controllers
             el_motor = self.devices['el_motor']
             az_motor = self.devices['az_motor']
+            #get configuration
+            self.az_home_pos = float(self.configuration['az_CCW_limit'])
+            self.el_home_pos = float(self.configuration['el_CW_limit'])
             #send initialize event
             info = OrderedDict()
             info['timestamp'] = time.time()
@@ -62,9 +67,6 @@ class Interface(Controller):
         assert self.is_initialized
         az_motor = self.devices['az_motor']
         el_motor = self.devices['el_motor']
-        #get configuration
-        az_home_pos = float(self.configuration['az_home_pos'])
-        el_home_pos = float(self.configuration['el_home_pos'])
         #send start event
         info = OrderedDict()
         info['timestamp'] = time.time()
@@ -79,8 +81,8 @@ class Interface(Controller):
         with az_motor.motor_controller._mutex:
             az_motor.seek_home("CCW")
             az_motor.set_home()       #sets motor's ref. pos to zero
-        self.el_pos = el_home_pos     #convert to sky coordinates
-        self.az_pos = az_home_pos     #convert to sky coordinates
+        self.el_pos = self.el_home_pos     #convert to sky coordinates
+        self.az_pos = self.az_home_pos     #convert to sky coordinates
         #end event
         self.is_initialized = True
         info = OrderedDict()
@@ -88,28 +90,6 @@ class Interface(Controller):
         info['az_pos'] = self.az_pos
         info['el_pos'] = self.el_pos
         self._send_event("TRACKING_MIRROR_POSITIONER_SEEK_HOME_COMPLETED", info)
-        
-    def _goto_az_angle(self, angle, blocking = True, **kwargs):
-        assert self.is_initialized
-        az_motor = self.devices['az_motor']
-        az_home_pos = float(self.configuration['az_home_pos'])
-        motor_angle = angle - az_home_pos
-        az_motor.goto_angle(motor_angle, **kwargs)
-        #query the motor for the position
-        new_motor_angle = az_motor.get_position()
-        self.az_pos = new_motor_angle + az_home_pos
-        return self.az_pos
-        
-    def _goto_el_angle(self, angle, **kwargs):
-        assert self.is_initialized
-        el_motor = self.devices['el_motor']
-        el_home_pos = float(self.configuration['el_home_pos'])
-        motor_angle = angle - el_home_pos
-        el_motor.goto_angle(motor_angle, **kwargs)
-        #query the motor for the position
-        new_motor_angle = el_motor.get_position()
-        self.el_pos = new_motor_angle + el_home_pos
-        return self.el_pos
         
 #    def set_windings(self, state = 'on'):
 #        "set current to windings, 'state' must be 'on' or 'off'"
@@ -137,8 +117,6 @@ class Interface(Controller):
         el_motor = self.devices['el_motor']
         az_motor = self.devices['az_motor']
         #get configuration
-        el_home_pos = float(self.configuration['el_home_pos'])
-        az_home_pos = float(self.configuration['az_home_pos'])
         update_query_delay = float(self.configuration['update_query_delay'])
         #goto_speed             = float(self.configuration.get('goto_speed', GOTO_SPEED_DEFAULT))
         #get current target parameters
@@ -154,14 +132,14 @@ class Interface(Controller):
             self._thread_abort_breakout_point()
             #move the motors simultaneously
             if not el_target is None:
-                el_motor_angle = el_target - el_home_pos
+                el_motor_angle = el_target - self.el_home_pos
                 if el_target > self.el_pos:
                     el_direction = 'CW'
                 else:
                     el_direction = 'CCW'
                 el_motor.goto_angle(el_motor_angle, direction = el_direction, blocking = False)
             if not az_target is None:
-                az_motor_angle = az_target - az_home_pos
+                az_motor_angle = az_target - self.az_home_pos
                 if az_target > self.az_pos:
                     az_direction = 'CW'
                 else:
@@ -182,10 +160,10 @@ class Interface(Controller):
                 self._thread_abort_breakout_point()
                 #query the motors for their positions
                 el_new_motor_angle = el_motor.get_position()
-                self.el_pos = el_new_motor_angle + el_home_pos
+                self.el_pos = el_new_motor_angle + self.el_home_pos
                 self._thread_abort_breakout_point()
                 az_new_motor_angle = az_motor.get_position()
-                self.az_pos = az_new_motor_angle + az_home_pos
+                self.az_pos = az_new_motor_angle + self.az_home_pos
                 info = OrderedDict()
                 info['timestamp'] = time.time()
                 info['el_pos']    = self.el_pos
@@ -194,9 +172,9 @@ class Interface(Controller):
             # END NORMALLY -----------------------------------
             #query the motors for their final positions
             el_new_motor_angle = el_motor.get_position()
-            self.el_pos = el_new_motor_angle + el_home_pos
+            self.el_pos = el_new_motor_angle + self.el_home_pos
             az_new_motor_angle = az_motor.get_position()
-            self.az_pos = az_new_motor_angle + az_home_pos
+            self.az_pos = az_new_motor_angle + self.az_home_pos
             info = OrderedDict()
             info['timestamp'] = time.time()
             info['el_pos']    = self.el_pos

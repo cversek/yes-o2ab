@@ -192,6 +192,7 @@ class Application:
         filter_switcher    = self.load_controller('filter_switcher')
         band_adjuster      = self.load_controller('band_adjuster')
         focus_adjuster     = self.load_controller('focus_adjuster')
+        tracking_mirror_positioner = self.load_controller('tracking_mirror_positioner')
         condition_monitor  = self.load_controller('condition_monitor')
         
         #query controllers for state
@@ -226,6 +227,8 @@ class Application:
         self.metadata['filt_A_type']       = self.filter_A_types[A][1]
         self.metadata['band_adjust_pos']   = band_adjust_pos
         self.metadata['focuser_pos']       = focuser_pos
+        self.metadata['azimuth']           = tracking_mirror_positioner.az_pos
+        self.metadata['elevation']         = tracking_mirror_positioner.el_pos
         if not sample is None:
             self.metadata.update(sample) # a whole bunch of conditions
         return self.metadata

@@ -28,6 +28,7 @@ from yes_o2ab.core.plotting.temperature      import TemperaturePlot
 from condition_fields        import ConditionFields
 from capture_settings_dialog import CaptureSettingsDialog
 from filter_select_dialog    import FilterSelectDialog
+from tracking_dialog         import TrackingGotoSunDialog, TrackingGotoCoordsDialog
 ###############################################################################
 # Module Constants
 from ..common_defs import FRAMETYPE_DEFAULT, EXPOSURE_TIME_DEFAULT,\
@@ -126,6 +127,9 @@ class GUI:
         self.capture_continually_button.pack(side='top', anchor="nw")
         self.stop_button = tk.Button(left_panel,text='Stop',command = self.stop, state='disabled', width = BUTTON_WIDTH)
         self.stop_button.pack(side='top', anchor="nw")
+        #build the capture settings dialog
+        self.capture_settings_dialog = CaptureSettingsDialog(self.win)
+        self.capture_settings_dialog.withdraw()
         
         #optics controls
         tk.Label(left_panel, pady = SECTION_PADY).pack(side='top',fill='x', anchor="nw")
@@ -172,7 +176,13 @@ class GUI:
         
         self.filter_select_button = tk.Button(left_panel,text='Band/Filter Select',command = self.filter_select, width = BUTTON_WIDTH)
         self.filter_select_button.pack(side='top', anchor="nw")
-        
+        #build the filter selection dialog
+        self.filter_select_dialog = FilterSelectDialog(
+                                                       parent = self.win, 
+                                                       choicesB = self.app.filter_B_types,
+                                                       choicesA = self.app.filter_A_types,
+                                                       )
+        self.filter_select_dialog.withdraw()
         
         #band fine adjustment controls
         band_adjust_frame = tk.Frame(left_panel)
@@ -253,8 +263,19 @@ class GUI:
         for key, widget in self.tracking_fields.items():
             widget.pack(side='top', anchor="w", expand='no')
         
-        self.tracking_goto_home_button = tk.Button(left_panel,text='Goto Home',command = lambda: self.tracking_goto('home'), width = BUTTON_WIDTH)
-        self.tracking_goto_home_button.pack(side='top', anchor="nw")
+        self.tracking_seek_home_button = tk.Button(left_panel,text='Seek Home',command = lambda: self.tracking_goto('home'), width = BUTTON_WIDTH)
+        self.tracking_seek_home_button.pack(side='top', anchor="nw")
+        self.tracking_goto_zenith_button = tk.Button(left_panel,text='Goto Zenith',command = lambda: self.tracking_goto('zenith'), width = BUTTON_WIDTH)
+        self.tracking_goto_zenith_button.pack(side='top', anchor="nw")
+        self.tracking_goto_sun_button = tk.Button(left_panel,text='Goto Sun',command = lambda: self.tracking_goto('sun'), width = BUTTON_WIDTH)
+        self.tracking_goto_sun_button.pack(side='top', anchor="nw")
+        self.tracking_goto_coords_button = tk.Button(left_panel,text='Goto Coords',command = lambda: self.tracking_goto('coords'), width = BUTTON_WIDTH)
+        self.tracking_goto_coords_button.pack(side='top', anchor="nw")
+        #build the tracking dialogs
+        #self.tracking_goto_sun_dialog = TrackingGotoSunDialog(self.win)
+        #self.tracking_goto_sun_dialog.withdraw()
+        #self.tracking_goto_coords_dialog = TrackingGotoCoordsDialog(self.win)
+        #self.tracking_goto_coords_dialog.withdraw()
         #finish the left panel
         left_panel.pack(fill='y',expand='no',side='left', padx = 10)
         #-----------------------------------------------------------------------
@@ -348,17 +369,6 @@ class GUI:
         #finish building the right panel
         right_panel.pack(fill='both', expand='yes',side='right')
         #-----------------------------------------------------------------------
-        
-        #build the filter selection dialog
-        self.filter_select_dialog = FilterSelectDialog(
-                                                       parent = self.win, 
-                                                       choicesB = self.app.filter_B_types,
-                                                       choicesA = self.app.filter_A_types,
-                                                       )
-        self.filter_select_dialog.withdraw()
-        #build the confirmation dialog
-        self.capture_settings_dialog = CaptureSettingsDialog(self.win)
-        self.capture_settings_dialog.withdraw()
         self._load_settings()
         
     def launch(self):
@@ -426,9 +436,7 @@ class GUI:
             while not image_capture.event_queue.empty():
                 event, info = image_capture.event_queue.get()
                 self.print_event(event,info)
-            
-            
-        
+
     def capture_once(self):
         #prevent multiple presses
         self.capture_once_button.configure(state='disabled')
@@ -633,7 +641,7 @@ class GUI:
         msg = "Please wait while the band is switched to '%s' and the filter is switched to position %d..." % (new_band,pos)
         self.busy()
         self.wait_msg_window = tk.Toplevel(self.win)
-        tk.Label(self.wait_msg_window,text=msg).pack(fill="both",expand="yes", padx=1,pady=1)
+        tk.Label(self.wait_msg_window,text=msg, font=HEADING_LABEL_FONT).pack(fill="both",expand="yes", padx=1,pady=1)
         # get screen width and height
         ws = self.win.winfo_screenwidth()
         hs = self.win.winfo_screenheight()
@@ -788,6 +796,97 @@ class GUI:
             self.app.print_comment("finished")
             if self._capture_mode == "on_adjust":
                 self.capture_once()
+                
+    def tracking_goto(self, loc):
+        solar_tracker = self.app.load_controller('solar_tracker')
+        #start the movement
+        if loc == 'home':
+            self._tracking_busy()
+            solar_tracker.seek_home() #this blocks
+        elif loc == 'zenith':
+            self._tracking_busy()
+            solar_tracker.goto_zenith(blocking = False)
+        elif loc == 'sun':
+            self.tracking_goto_sun_dialog.activate()
+            self._tracking_busy()
+            solar_tracker.goto_sun(blocking = False)
+        elif loc == 'coords':
+            dlg = TrackingGotoCoordsDialog(self.win)
+            dlg.withdraw()
+            tracking_mirror_positioner = self.app.load_controller('tracking_mirror_positioner')
+            az_CW_limit  = float(tracking_mirror_positioner.configuration['az_CW_limit'])
+            az_CCW_limit = float(tracking_mirror_positioner.configuration['az_CCW_limit'])
+            el_CW_limit  = float(tracking_mirror_positioner.configuration['el_CW_limit'])
+            el_CCW_limit = float(tracking_mirror_positioner.configuration['el_CCW_limit'])
+            dlg.set_limits(az_CW_limit  = az_CW_limit,
+                                                        az_CCW_limit = az_CCW_limit,
+                                                        el_CW_limit  = el_CW_limit,
+                                                        el_CCW_limit = el_CCW_limit,
+                                                       )
+            dlg.az_field.setvalue(tracking_mirror_positioner.az_pos)
+            dlg.el_field.setvalue(tracking_mirror_positioner.el_pos)
+            choice = dlg.activate()
+            dlg.deactivate()
+            az_target = float(dlg.az_field.getvalue())
+            el_target = float(dlg.el_field.getvalue())
+            self._tracking_busy()
+            solar_tracker.goto_coords(az_target = az_target,
+                                      el_target = el_target,
+                                      blocking = False)
+        self._wait_on_tracking_goto_loop()
+        
+    def _tracking_busy(self):
+        #throw up a busy message
+        msg = "Please wait while tracking mirror is moved..."
+        self.busy()
+        self.wait_msg_window = tk.Toplevel(self.win)
+        tk.Label(self.wait_msg_window,text=msg, font=HEADING_LABEL_FONT).pack(fill="both",expand="yes", padx=1,pady=1)
+        # get screen width and height
+        ws = self.win.winfo_screenwidth()
+        hs = self.win.winfo_screenheight()
+        w = ws/2
+        h = hs/4
+        # calculate position x, y
+        x = (ws/2) - (w/2)
+        y = (hs/2) - (h/2)
+        self.wait_msg_window.geometry("%dx%d+%d+%d" % (w,h,x,y))
+        self.wait_msg_window.update()
+        self.wait_msg_window.lift()
+        self.wait_msg_window.grab_set()
+        self.app.print_comment(msg)
+        self.tracking_fields['azimuth'].configure(entry_fg = "dark gray")
+        self.tracking_fields['elevation'].configure(entry_fg = "dark gray")
+        
+    def _wait_on_tracking_goto_loop(self):
+        #check the controller states
+        solar_tracker  = self.app.load_controller('solar_tracker')
+        #read out all pending events
+        while not solar_tracker.event_queue.empty():
+            event, info = solar_tracker.event_queue.get()
+            self.print_event(event,info)
+            if event == 'TRACKING_MIRROR_POSITIONER_UPDATE':
+                az_pos = info['az_pos']
+                el_pos = info['el_pos']
+                self.tracking_fields['azimuth'].setvalue(az_pos)
+                self.tracking_fields['elevation'].setvalue(el_pos)
+        #check thread state
+        if solar_tracker.thread_isAlive():
+            #reschedule loop
+            self.win.after(LOOP_DELAY,self._wait_on_tracking_goto_loop)
+        else:
+            md = self.app.query_metadata()
+            self._update_tracking_fields(md)
+            self.tracking_fields['azimuth'].configure(entry_fg = "black")
+            self.tracking_fields['elevation'].configure(entry_fg = "black")
+            self.not_busy()
+            self.wait_msg_window.destroy()
+            self.app.print_comment("finished")
+            if self._capture_mode == "on_adjust":
+                self.capture_once()
+                
+    def _update_tracking_fields(self, md):
+        self.tracking_fields['azimuth'].setvalue(md['azimuth'])
+        self.tracking_fields['elevation'].setvalue(md['elevation'])
                 
     def replot_raw_spectrum(self):
         self.raw_spectrum_plot_template._has_been_plotted = False

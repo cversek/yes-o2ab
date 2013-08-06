@@ -15,8 +15,6 @@ CONTROL_POINT_INTERVAL_DEFAULT = 60
 ###############################################################################
 class Interface(Controller):
     def __init__(self,**kwargs):
-        self.az_pos = None
-        self.el_pos = None
         self.is_initialized = False
         Controller.__init__(self, **kwargs)
         
@@ -73,11 +71,46 @@ class Interface(Controller):
         self.is_initialized = True
         info = OrderedDict()
         info['timestamp'] = time.time()
-        info['az_pos']    = self.az_pos
-        info['el_pos']    = self.el_pos
         info['used_time'] = used_t
         self._send_event("SOLAR_TRACKER_SEEK_HOME_COMPLETED", info)
         return used_t
+        
+    def goto_coords(self, 
+                    az_target = None,
+                    el_target = None,
+                    blocking = True
+                    ):
+        assert self.is_initialized
+        tracking_mirror_positioner = self.controllers['tracking_mirror_positioner']
+        #send start event
+        info = OrderedDict()
+        info['timestamp'] = time.time()
+        self._send_event("SOLAR_TRACKER_GOTO_COORDS_STARTED", info)
+        #ensure windings are off FIXME do we need this?
+        #self.set_windings('on')
+        if blocking:
+            #start tracking time
+            t0 = time.time()
+            tracking_mirror_positioner.goto(az_target = az_target,
+                                            el_target = el_target,
+                                            blocking = blocking,
+                                            )
+            t1 = time.time()
+            used_t = t1-t0
+            #end event
+            self.is_initialized = True
+            info = OrderedDict()
+            info['timestamp'] = time.time()
+            info['az_pos']    = self.az_pos
+            info['el_pos']    = self.el_pos
+            info['used_time'] = used_t
+            self._send_event("SOLAR_TRACKER_GOTO_COORDS_COMPLETED", info)
+            return used_t
+        else:
+            tracking_mirror_positioner.goto(az_target = az_target,
+                                            el_target = el_target,
+                                            blocking = blocking,
+                                            )
         
     def goto_zenith(self, blocking = True):
         assert self.is_initialized
@@ -88,22 +121,27 @@ class Interface(Controller):
         self._send_event("SOLAR_TRACKER_GOTO_ZENITH_STARTED", info)
         #ensure windings are off FIXME do we need this?
         #self.set_windings('on')
-        #start tracking time
-        t0 = time.time()
-        tracking_mirror_positioner.goto(el_target = 90.0,
-                                        blocking = blocking,
-                                        )
-        t1 = time.time()
-        used_t = t1-t0
-        #end event
-        self.is_initialized = True
-        info = OrderedDict()
-        info['timestamp'] = time.time()
-        info['az_pos']    = self.az_pos
-        info['el_pos']    = self.el_pos
-        info['used_time'] = used_t
-        self._send_event("SOLAR_TRACKER_GOTO_ZENITH_COMPLETED", info)
-        return used_t
+        if blocking:
+            #start tracking time
+            t0 = time.time()
+            tracking_mirror_positioner.goto(el_target = 90.0,
+                                            blocking = blocking,
+                                            )
+            t1 = time.time()
+            used_t = t1-t0
+            #end event
+            self.is_initialized = True
+            info = OrderedDict()
+            info['timestamp'] = time.time()
+            info['az_pos']    = self.az_pos
+            info['el_pos']    = self.el_pos
+            info['used_time'] = used_t
+            self._send_event("SOLAR_TRACKER_GOTO_ZENITH_COMPLETED", info)
+            return used_t
+        else:
+            tracking_mirror_positioner.goto(el_target = 90.0,
+                                            blocking = blocking,
+                                            )
         
     def goto_sun(self, seconds_ahead = 0, blocking = True):
         """goto to where the sun is predicted to be 'seconds_ahead' from now"""
@@ -128,21 +166,26 @@ class Interface(Controller):
         info['az_future'] = az_future
         info['el_future'] = el_future
         self._send_event("SOLAR_TRACKER_GOTO_SUN_STARTED", info)
-        tracking_mirror_positioner.goto(az_target = az_future,
-                                        el_target = el_future,
-                                        blocking = blocking,
-                                        )
-        t1 = time.time()
-        used_t = t1-t0
-        #send end event
-        info = OrderedDict()
-        info['timestamp'] = t1
-        info['az_pos']    = self.az_pos
-        info['el_pos']    = self.el_pos
-        info['used_time'] = used_t
-        self._send_event("SOLAR_TRACKER_GOTO_SUN_COMPLETED", info)
-        return used_t
-
+        if blocking:
+            tracking_mirror_positioner.goto(az_target = az_future,
+                                            el_target = el_future,
+                                            blocking = blocking,
+                                            )
+            t1 = time.time()
+            used_t = t1-t0
+            #send end event
+            info = OrderedDict()
+            info['timestamp'] = t1
+            info['az_pos']    = self.az_pos
+            info['el_pos']    = self.el_pos
+            info['used_time'] = used_t
+            self._send_event("SOLAR_TRACKER_GOTO_SUN_COMPLETED", info)
+            return used_t
+        else:
+            tracking_mirror_positioner.goto(az_target = az_future,
+                                            el_target = el_future,
+                                            blocking = blocking,
+                                            )
 #    def set_windings(self, state = 'on'):
 #        "set current to windings, 'state' must be 'on' or 'off'"
 #        az_motor = self.devices['az_motor']

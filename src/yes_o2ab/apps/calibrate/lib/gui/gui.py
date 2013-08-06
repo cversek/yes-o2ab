@@ -184,7 +184,7 @@ class GUI:
         
         self.band_adjust_stepsize_field = Pmw.EntryField(band_adjust_frame,
                                                          labelpos='e',
-                                                         label_text="step size (max=1000)",
+                                                         label_text="step size",
                                                          label_font = FIELD_LABEL_FONT,
                                                          value = FINE_ADJUST_STEP_SIZE_DEFAULT,
                                                          entry_width=9,
@@ -214,7 +214,7 @@ class GUI:
         focus_adjust_button_frame.pack(side='top',fill='x', anchor="nw")
         self.focus_adjust_stepsize_field = Pmw.EntryField(focus_adjust_button_frame,
                                                           labelpos    = 'e',
-                                                          label_text  ="step size (max=1000)",
+                                                          label_text  ="step size",
                                                           label_font  = FIELD_LABEL_FONT,
                                                           value       = FINE_ADJUST_STEP_SIZE_DEFAULT,
                                                           entry_width = 9,

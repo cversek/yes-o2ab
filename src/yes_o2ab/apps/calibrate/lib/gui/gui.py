@@ -112,21 +112,30 @@ class GUI:
         #build the left panel
         left_panel = tk.Frame(win)
         #capture controls
+        self._capture_mode     = None
+        self._capture_after_id = None
         tk.Label(left_panel, text="Capture Controls:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
         self.change_capture_settings_button = tk.Button(left_panel,
                                                         text    = 'Change Settings',
                                                         command = self.change_capture_settings, 
                                                         width   = BUTTON_WIDTH)
         self.change_capture_settings_button.pack(side='top', anchor="sw")
-        self._capture_mode = None
         self.capture_once_button = tk.Button(left_panel,text='Run Once',command = self.capture_once, width = BUTTON_WIDTH)
         self.capture_once_button.pack(side='top', anchor="nw")
         self.capture_on_adjust_button = tk.Button(left_panel,text='Run on Adjust',command = self.capture_on_adjust, width = BUTTON_WIDTH)
         self.capture_on_adjust_button.pack(side='top', anchor="nw")
         self.capture_continually_button  = tk.Button(left_panel,text='Run Continually',command = self.capture_continually, width = BUTTON_WIDTH)
         self.capture_continually_button.pack(side='top', anchor="nw")
-        self.stop_button = tk.Button(left_panel,text='Stop',command = self.stop, state='disabled', width = BUTTON_WIDTH)
-        self.stop_button.pack(side='top', anchor="nw")
+        self.capture_stop_button = tk.Button(left_panel,text='Stop',command = self.capture_stop, state='disabled', width = BUTTON_WIDTH)
+        self.capture_stop_button.pack(side='top', anchor="nw")
+        self.capture_time_left_field = Pmw.EntryField(left_panel,
+                                                      labelpos    = 'w',
+                                                      label_text  = "time left (s):",
+                                                      label_font  = FIELD_LABEL_FONT,
+                                                      entry_width = 8,
+                                                      entry_state = 'readonly',
+                                                      )
+        self.capture_time_left_field.pack(side='top',anchor='w',expand='no')
         #build the capture settings dialog
         self.capture_settings_dialog = CaptureSettingsDialog(self.win)
         self.capture_settings_dialog.withdraw()
@@ -265,22 +274,22 @@ class GUI:
         
         self.tracking_seek_home_button = tk.Button(left_panel,text='Seek Home',command = lambda: self.tracking_goto('home'), width = BUTTON_WIDTH)
         self.tracking_seek_home_button.pack(side='top', anchor="nw")
-        self.tracking_goto_zenith_button = tk.Button(left_panel,text='Goto Zenith',command = lambda: self.tracking_goto('zenith'), width = BUTTON_WIDTH)
+        self.tracking_goto_zenith_button = tk.Button(left_panel,text='Go to Zenith',command = lambda: self.tracking_goto('zenith'), width = BUTTON_WIDTH)
         self.tracking_goto_zenith_button.pack(side='top', anchor="nw")
-        self.tracking_goto_sun_button = tk.Button(left_panel,text='Goto Sun',command = lambda: self.tracking_goto('sun'), width = BUTTON_WIDTH)
+        self.tracking_goto_sun_button = tk.Button(left_panel,text='Go to Sun',command = lambda: self.tracking_goto('sun'), width = BUTTON_WIDTH)
         self.tracking_goto_sun_button.pack(side='top', anchor="nw")
-        self.tracking_goto_coords_button = tk.Button(left_panel,text='Goto Coords',command = lambda: self.tracking_goto('coords'), width = BUTTON_WIDTH)
+        self.tracking_goto_coords_button = tk.Button(left_panel,text='Go to Coords',command = lambda: self.tracking_goto('coords'), width = BUTTON_WIDTH)
         self.tracking_goto_coords_button.pack(side='top', anchor="nw")
         #build the tracking dialogs
-        #self.tracking_goto_sun_dialog = TrackingGotoSunDialog(self.win)
-        #self.tracking_goto_sun_dialog.withdraw()
-        #self.tracking_goto_coords_dialog = TrackingGotoCoordsDialog(self.win)
-        #self.tracking_goto_coords_dialog.withdraw()
+        self.tracking_goto_sun_dialog = TrackingGotoSunDialog(self.win)
+        self.tracking_goto_sun_dialog.withdraw()
+        self.tracking_goto_coords_dialog = TrackingGotoCoordsDialog(self.win)
+        self.tracking_goto_coords_dialog.withdraw()
         #finish the left panel
         left_panel.pack(fill='y',expand='no',side='left', padx = 10)
         #-----------------------------------------------------------------------
         #build the middle panel - a tabbed notebook
-        mid_panel = tk.Frame(win, padx=10)
+        mid_panel = tk.Frame(win)
         nb        = ttk.Notebook(mid_panel)
         nb.pack(fill='both', expand='yes',side='right')
         tab1 = tk.Frame(nb)
@@ -367,7 +376,7 @@ class GUI:
         self.text_display  = TextDisplayBox(right_panel,text_height=15, buffer_size = TEXT_BUFFER_SIZE)
         self.text_display.pack(side='left',fill='both',expand='yes')
         #finish building the right panel
-        right_panel.pack(fill='both', expand='yes',side='right')
+        right_panel.pack(fill='both', expand='yes',side='right', padx = 10)
         #-----------------------------------------------------------------------
         self._load_settings()
         
@@ -379,11 +388,12 @@ class GUI:
         self.condition_monitor_button.invoke()
         md = self.app.query_metadata()
         self._update_optics_fields(md)
+        self._update_tracking_fields(md)
         self.flush_event_queues()
         #reveal the main window
         self.win.deiconify()
         self.win.mainloop()
-        NoticeKeyboardInterrupt()   
+        NoticeKeyboardInterrupt()
         
     def flush_event_queues(self):
         for handle in self.app.USED_CONTROLLERS:
@@ -404,26 +414,37 @@ class GUI:
     def disable_control_buttons(self):
         self.change_capture_settings_button.configure(state="disabled")
         self.capture_continually_button.configure(state="disabled")
-        #self.stop_button.configure(state="disabled")
+        #self.capture_stop_button.configure(state="disabled")
         self.capture_once_button.configure(state="disabled")
         self.capture_on_adjust_button.configure(state="disabled")
         self.filter_select_button.configure(state="disabled")
         self.band_adjustL_button.configure(state="disabled")
         self.band_adjustR_button.configure(state="disabled")
+        self.focus_adjust_goto_center_button.configure(state="disabled")
         self.focus_adjustL_button.configure(state="disabled")
         self.focus_adjustR_button.configure(state="disabled")
+        self.tracking_seek_home_button.config(state='disabled')
+        self.tracking_goto_zenith_button.config(state='disabled')
+        self.tracking_goto_sun_button.config(state='disabled')
+        self.tracking_goto_coords_button.config(state='disabled')
         
     def enable_control_buttons(self):
         self.change_capture_settings_button.configure(state="normal")
-        self.capture_continually_button.configure(state="normal")
-        #self.stop_button.configure(state="normal")
+        if not self._capture_mode == "on_adjust":
+            self.capture_continually_button.configure(state="normal")
+        #self.capture_stop_button.configure(state="normal")
         self.capture_once_button.configure(state="normal")
         self.capture_on_adjust_button.configure(state="normal")
         self.filter_select_button.configure(state="normal")
         self.band_adjustL_button.configure(state="normal")
         self.band_adjustR_button.configure(state="normal")
+        self.focus_adjust_goto_center_button.configure(state="normal")
         self.focus_adjustL_button.configure(state="normal")
         self.focus_adjustR_button.configure(state="normal")
+        self.tracking_seek_home_button.config(state='normal')
+        self.tracking_goto_zenith_button.config(state='normal')
+        self.tracking_goto_sun_button.config(state='normal')
+        self.tracking_goto_coords_button.config(state='normal')
 
     def change_capture_settings(self):
         choice = self.capture_settings_dialog.activate()
@@ -437,9 +458,11 @@ class GUI:
                 event, info = image_capture.event_queue.get()
                 self.print_event(event,info)
 
-    def capture_once(self):
-        #prevent multiple presses
-        self.capture_once_button.configure(state='disabled')
+    def capture_once(self, delay = 0.0):
+        #disable all the buttons, except the stop button
+        self.capture_once_button.config(bg='green', relief='sunken')
+        self.disable_control_buttons()
+        self.capture_stop_button.config(state='normal')
         #get parameters
         frametype         = self.capture_settings_dialog.frametype_var.get()
         exposure_time     = int(self.capture_settings_dialog.form['exposure_time'])
@@ -454,6 +477,7 @@ class GUI:
                                exposure_time     = exposure_time,
                                rbi_num_flushes   = rbi_num_flushes,
                                rbi_exposure_time = rbi_exposure_time,
+                               delay = delay,
                                CCD_temp_setpoint = temp,
                                blocking = False)
         #self.busy()
@@ -471,6 +495,9 @@ class GUI:
             elif event == "FILTER_SWITCHER_COMPLETED":
                md = self.app.query_filter_status()
                self._update_filter_status(md)
+            elif event == "IMAGE_CAPTURE_LOOP_SLEEPING":
+                time_left = info['time_left']
+                self.capture_time_left_field.setvalue("%d" % round(time_left))
         if image_capture.thread_isAlive(): 
             #reschedule loop
             self.win.after(LOOP_DELAY,self._wait_on_capture_loop)
@@ -479,8 +506,12 @@ class GUI:
             #md = self.app.last_capture_metadata.copy()
             md = self.app.query_metadata()
             self._update_optics_fields(md)
+            self.capture_time_left_field.setvalue("")
             #self.not_busy()
-            self.capture_once_button.configure(state='normal')
+            #re-enable all the buttons, except the stop button
+            self.enable_control_buttons()
+            self.capture_once_button.config(bg='light gray', relief='raised')
+            self.capture_stop_button.config(state='disabled')
             self.app.print_comment("capture completed")
             self.app.compute_raw_spectrum()
             S = self.app.get_raw_spectrum()
@@ -496,28 +527,38 @@ class GUI:
     def capture_on_adjust(self):
         if self._capture_mode == "on_adjust": #toggle it off
             self.capture_on_adjust_button.config(bg='light gray', relief="raised")
+            #re-enable all the buttons, except the stop button
+            self.capture_once_button.config(state='normal')
+            self.capture_on_adjust_button.config(state='normal')
+            self.capture_continually_button.config(state='normal')
+            self.capture_stop_button.config(state='disabled')
             self._capture_mode = None
         else: #toggle it on
             self.capture_on_adjust_button.config(bg='green', relief="sunken")
-            self.capture_continually_button.config(state='normal', bg='light gray', relief="raised")
-            self.stop_button.config(state='disabled')
+            #disable some of the capture mode buttons
+            #self.capture_once_button.config(state='disabled')
+            self.capture_continually_button.config(state='disabled', bg='light gray', relief="raised")
+            self.capture_stop_button.config(state='disabled')
             self._capture_mode = "on_adjust"
-        self.stop_button.config(state='normal')
-        
      
     def capture_continually(self):
         #disable all the buttons, except the stop button
         self.capture_once_button.config(state='disabled')
-        self.capture_on_adjust_button.config(state='disabled', bg='light gray', relief="raised")
+        self.change_capture_settings_button.config(state='disabled')
+        self.capture_on_adjust_button.config(state='disabled')
         self.capture_continually_button.config(state='disabled', bg='green', relief="sunken")
-        self.stop_button.config(state='normal')
+        self.capture_stop_button.config(state='normal')
+        self.tracking_seek_home_button.config(state='disabled')
+        self.tracking_goto_zenith_button.config(state='disabled')
+        self.tracking_goto_sun_button.config(state='disabled')
+        self.tracking_goto_coords_button.config(state='disabled')
         self._capture_mode = "continual"
         #get parameters
         frametype         = self.capture_settings_dialog.frametype_var.get()
-        exposure_time     = int(self.capture_settings_dialog.form['exposure_time'])
-        rbi_num_flushes   = int(self.capture_settings_dialog.form['rbi_num_flushes'])
-        rbi_exposure_time = int(self.capture_settings_dialog.form['rbi_exposure_time'])
-        repeat_delay      = int(self.capture_settings_dialog.form['repeat_delay'])
+        exposure_time     = float(self.capture_settings_dialog.form['exposure_time'])
+        rbi_num_flushes   =   int(self.capture_settings_dialog.form['rbi_num_flushes'])
+        rbi_exposure_time = float(self.capture_settings_dialog.form['rbi_exposure_time'])
+        delay             = float(self.capture_settings_dialog.form['repeat_delay'])
         #set up the image capture controller in loop mode
         image_capture = self.app.load_controller('image_capture')
         image_capture.set_configuration(frametype         = frametype,
@@ -525,11 +566,11 @@ class GUI:
                                         exposure_time     = exposure_time,
                                         rbi_num_flushes   = rbi_num_flushes,
                                         rbi_exposure_time = rbi_exposure_time,
-                                        repeat_delay      = repeat_delay,
+                                        delay             = delay,
                                        )
         #refresh the metdata
         self.app.query_metadata()
-        self.app.print_comment("Starting image capture loop with repeat delay %d seconds." % (repeat_delay,))
+        self.app.print_comment("Starting image capture loop with repeat delay %d seconds." % (delay,))
         image_capture.start() #should not block
         #schedule loop
         self._capture_continually_loop()
@@ -547,6 +588,9 @@ class GUI:
             elif event == "FILTER_SWITCHER_COMPLETED":
                md = self.app.query_filter_status()
                self._update_filter_status(md)
+            elif event == "IMAGE_CAPTURE_LOOP_SLEEPING":
+                time_left = info['time_left']
+                self.capture_time_left_field.setvalue("%d" % round(time_left))
             elif event == "IMAGE_CAPTURE_EXPOSURE_COMPLETED":
                 #grab the image, comput the spectrum, then update them
                 I = info['image_array']
@@ -557,26 +601,38 @@ class GUI:
                 self._update_image(I)
                 self.replot_raw_spectrum_button.config(state='normal') #data can now be replotted
                 self.save_image_button.config(state='normal')      #data can now be exported
-          
         #reschedule loop
         if image_capture.thread_isAlive():  #wait for the capture to finish, important!
-            self.win.after(LOOP_DELAY,self._capture_continually_loop)
+            self._capture_after_id = self.win.after(LOOP_DELAY,self._capture_continually_loop)
         else:
             #finish up
             md = self.app.query_metadata()
             self.app.last_capture_metadata = md
+            self.capture_time_left_field.setvalue("")
             self._update_optics_fields(md)
             #enable all the buttons, except the stop button
             self.capture_once_button.config(state='normal')
-            self.capture_on_adjust_button.config(state='normal', bg='light gray', relief = 'raised')
+            self.change_capture_settings_button.config(state='normal')
+            self.capture_on_adjust_button.config(state='normal')
             self.capture_continually_button.config(state='normal', bg='light gray', relief = 'raised')
-            self.export_raw_spectrum_button.config(state='normal') #data can now be exported
-            self.stop_button.config(state='disabled')
+            self.tracking_seek_home_button.config(state='normal')
+            self.tracking_goto_zenith_button.config(state='normal')
+            self.tracking_goto_sun_button.config(state='normal')
+            self.tracking_goto_coords_button.config(state='normal')
+            #data can now be exported
+            self.export_raw_spectrum_button.config(state='normal')
             #do not reschedule loop
 
-    def stop(self):
+    def capture_stop(self):
+        self.capture_stop_button.config(state='disabled')
         image_capture = self.app.load_controller('image_capture')
-        image_capture.stop()
+        #force it to stop right now instead of finishing sleep
+        image_capture.abort()
+        if not self._capture_after_id is None:
+            #cancel the next scheduled loop time
+            self.win.after_cancel(self._capture_after_id)
+            #then enter the loop one more time to clean up
+            self._capture_continually_loop()
         self._capture_mode = None
     
     def filter_select(self):
@@ -752,7 +808,10 @@ class GUI:
             self.not_busy()
             self.app.print_comment("finished")
             if self._capture_mode == "on_adjust":
-                self.capture_once()
+                #check to see if a capture is already running
+                image_capture = self.app.load_controller('image_capture')
+                if not image_capture.thread_isAlive():
+                    self.capture_once()
         
     def focus_adjust(self, step_direction):
         #get the stepsize from the field
@@ -795,22 +854,49 @@ class GUI:
             self.not_busy()
             self.app.print_comment("finished")
             if self._capture_mode == "on_adjust":
-                self.capture_once()
+                #check to see if a capture is already running
+                image_capture = self.app.load_controller('image_capture')
+                if not image_capture.thread_isAlive():
+                    self.capture_once()
                 
-    def tracking_goto(self, loc):
+    def tracking_goto(self, mode):
         solar_tracker = self.app.load_controller('solar_tracker')
         #start the movement
-        if loc == 'home':
+        if mode == 'home':
             self._tracking_busy()
             solar_tracker.seek_home() #this blocks
-        elif loc == 'zenith':
+            self._wait_on_tracking_goto_loop(mode)
+            return
+        elif mode == 'zenith':
             self._tracking_busy()
             solar_tracker.goto_zenith(blocking = False)
-        elif loc == 'sun':
-            self.tracking_goto_sun_dialog.activate()
-            self._tracking_busy()
-            solar_tracker.goto_sun(blocking = False)
-        elif loc == 'coords':
+            self._wait_on_tracking_goto_loop(mode)
+            return
+        elif mode == 'sun':
+            #pre select the delay and capture mode if in "run on adjust" mode
+            if self._capture_mode == "on_adjust":
+                self.tracking_goto_sun_dialog.delay_then_capture_button.select()
+            self.tracking_goto_sun_dialog.withdraw()
+            action = self.tracking_goto_sun_dialog.activate()
+            self.tracking_goto_sun_dialog.deactivate()
+            if action == 'OK':
+                self._tracking_busy()
+                self._tracking_start_time = time.time()
+                try:
+                    solar_tracker.goto_sun(blocking = False)
+                except ValueError, exc:
+                    msg = "The 'go to sun' tracking request could not be completed, because of the following error: %s" % exc
+                    dlg = Pmw.MessageDialog(parent = self.win,
+                                            message_text = msg,
+                                            buttons = ('OK',),
+                                            title = "Tracking Error",
+                                            )
+                    choice = dlg.activate()
+                    dlg.deactivate()
+                    mode = None #prevents post handling in waiting loop
+                self._wait_on_tracking_goto_loop(mode)
+                return
+        elif mode == 'coords':
             dlg = TrackingGotoCoordsDialog(self.win)
             dlg.withdraw()
             tracking_mirror_positioner = self.app.load_controller('tracking_mirror_positioner')
@@ -825,20 +911,23 @@ class GUI:
                                                        )
             dlg.az_field.setvalue(tracking_mirror_positioner.az_pos)
             dlg.el_field.setvalue(tracking_mirror_positioner.el_pos)
-            choice = dlg.activate()
+            action = dlg.activate()
             dlg.deactivate()
-            az_target = float(dlg.az_field.getvalue())
-            el_target = float(dlg.el_field.getvalue())
-            self._tracking_busy()
-            solar_tracker.goto_coords(az_target = az_target,
-                                      el_target = el_target,
-                                      blocking = False)
-        self._wait_on_tracking_goto_loop()
+            if action == 'OK':
+                az_target = float(dlg.az_field.getvalue())
+                el_target = float(dlg.el_field.getvalue())
+                self._tracking_busy()
+                solar_tracker.goto_coords(az_target = az_target,
+                                          el_target = el_target,
+                                          blocking = False)
+                self._wait_on_tracking_goto_loop(mode)
+                return
         
     def _tracking_busy(self):
         #throw up a busy message
         msg = "Please wait while tracking mirror is moved..."
         self.busy()
+        self.disable_control_buttons()
         self.wait_msg_window = tk.Toplevel(self.win)
         tk.Label(self.wait_msg_window,text=msg, font=HEADING_LABEL_FONT).pack(fill="both",expand="yes", padx=1,pady=1)
         # get screen width and height
@@ -857,7 +946,7 @@ class GUI:
         self.tracking_fields['azimuth'].configure(entry_fg = "dark gray")
         self.tracking_fields['elevation'].configure(entry_fg = "dark gray")
         
-    def _wait_on_tracking_goto_loop(self):
+    def _wait_on_tracking_goto_loop(self, mode):
         #check the controller states
         tracking_mirror_positioner  = self.app.load_controller('tracking_mirror_positioner')
         #read out all pending events
@@ -872,17 +961,32 @@ class GUI:
         #check thread state
         if tracking_mirror_positioner.thread_isAlive():
             #reschedule loop
-            self.win.after(LOOP_DELAY,self._wait_on_tracking_goto_loop)
-        else:
+            self.win.after(LOOP_DELAY,lambda: self._wait_on_tracking_goto_loop(mode))
+        else: #position has been reached
             md = self.app.query_metadata()
             self._update_tracking_fields(md)
             self.tracking_fields['azimuth'].configure(entry_fg = "black")
             self.tracking_fields['elevation'].configure(entry_fg = "black")
             self.not_busy()
+            self.enable_control_buttons()
             self.wait_msg_window.destroy()
             self.app.print_comment("finished")
-            if self._capture_mode == "on_adjust":
-                self.capture_once()
+            if mode == 'home':
+                return
+            elif mode == 'zenith' or mode == "coords":
+                if self._capture_mode == "on_adjust":
+                    #check to see if a capture is already running
+                    image_capture = self.app.load_controller('image_capture')
+                    if not image_capture.thread_isAlive():
+                        self.capture_once()
+                    return
+            elif mode == 'sun':
+                cap = self.tracking_goto_sun_dialog.delay_then_capture_variable.get()
+                if cap:
+                    dt = time.time() - self._tracking_start_time
+                    seconds_ahead = float(self.tracking_goto_sun_dialog.seconds_ahead_field.getvalue())
+                    time_left = seconds_ahead - dt
+                    self.capture_once(delay=time_left)
                 
     def _update_tracking_fields(self, md):
         self.tracking_fields['azimuth'].setvalue(md['azimuth'])
@@ -1029,8 +1133,9 @@ class GUI:
             return
     
     def _update_raw_spectrum_plot(self, S = None, B = None):
-        assert not (S is None and B is None)
-        figure        = self.raw_spectrum_figure_widget.get_figure()        
+        if (S is None and B is None):
+            return #do nothing
+        figure        = self.raw_spectrum_figure_widget.get_figure()
         plot_template = self.raw_spectrum_plot_template
         title = "Raw Spectrum"
         self.raw_spectrum_plot_template.configure(title=title)
@@ -1114,6 +1219,8 @@ class GUI:
 #                self.processed_spectrum_figure_widget.update()
             
     def _update_image(self, I):
+        if I is None:
+            return
         #downsample to 8-bit for display
         I2 = (I/2**8).astype('uint8')
         disp_img = Image.fromarray(I2)

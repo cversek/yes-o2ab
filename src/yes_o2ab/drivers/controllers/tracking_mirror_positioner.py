@@ -15,10 +15,16 @@ CONTROL_POINT_INTERVAL_DEFAULT = 60
 ###############################################################################
 class Interface(Controller):
     def __init__(self,**kwargs):
+        
+        #set up attributes
         self.az_pos = None
         self.el_pos = None
         self.az_home_pos = None
         self.el_home_pos = None
+        self.az_min = None
+        self.az_max = None
+        self.el_min = None
+        self.el_max = None
         self.az_target = None
         self.el_target = None
         self.is_initialized = False
@@ -30,12 +36,21 @@ class Interface(Controller):
         if not "thread_initialized" in self._controller_mode_set:
             self.thread_init(**kwargs)
         try:
+            #get configuration
+            az_CW_limit  = float(self.configuration['az_CW_limit'])
+            az_CCW_limit = float(self.configuration['az_CCW_limit'])
+            el_CW_limit  = float(self.configuration['el_CW_limit'])
+            el_CCW_limit = float(self.configuration['el_CCW_limit'])
+            #set up attributes
+            self.az_home_pos = az_CCW_limit
+            self.el_home_pos = el_CW_limit
+            self.az_min = min(az_CW_limit, az_CCW_limit)
+            self.az_max = max(az_CW_limit, az_CCW_limit)
+            self.el_min = min(el_CW_limit, el_CCW_limit)
+            self.el_max = max(el_CW_limit, el_CCW_limit)
             #get dependent devices and controllers
             el_motor = self.devices['el_motor']
             az_motor = self.devices['az_motor']
-            #get configuration
-            self.az_home_pos = float(self.configuration['az_CCW_limit'])
-            self.el_home_pos = float(self.configuration['el_CW_limit'])
             #send initialize event
             info = OrderedDict()
             info['timestamp'] = time.time()
@@ -104,6 +119,12 @@ class Interface(Controller):
 #                raise ValueError, "'state' must be 'on' or 'off'"
 #   
     def goto(self, az_target = None, el_target = None, blocking = False, **kwargs):
+        if not az_target is None:
+            if not (self.az_min <= az_target <= self.az_max):
+                raise ValueError("must have %0.2f <= az_target <= %0.2f, got: %f" % (self.az_min,self.az_max, az_target))
+        if not el_target is None:
+            if not (self.el_min <= el_target <= self.el_max):
+                raise ValueError("must have %0.2f <= el_target <= %0.2f, got: %f" % (self.el_min,self.el_max, el_target))
         self.az_target = az_target
         self.el_target = el_target
         self.thread_init(**kwargs) #gets the threads working

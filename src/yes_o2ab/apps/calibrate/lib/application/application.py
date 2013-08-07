@@ -250,12 +250,14 @@ class Application:
                       exposure_time     = EXPOSURE_TIME_DEFAULT,
                       rbi_num_flushes   = RBI_NUM_FLUSHES_DEFAULT,
                       rbi_exposure_time = RBI_EXPOSURE_TIME_DEFAULT,
+                      delay             = 0.0,
                       CCD_temp_setpoint = None,
                       blocking          = True,
                       ):
         image_capture = self.load_controller('image_capture')
         image_capture.set_configuration(frametype         = frametype,
                                         num_captures      = 1,
+                                        delay             = delay,
                                         exposure_time     = exposure_time,
                                         rbi_num_flushes   = rbi_num_flushes,
                                         rbi_exposure_time = rbi_exposure_time,

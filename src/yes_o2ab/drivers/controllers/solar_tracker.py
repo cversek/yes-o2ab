@@ -165,6 +165,7 @@ class Interface(Controller):
         info['jd_future'] = jd_future
         info['az_future'] = az_future
         info['el_future'] = el_future
+        
         self._send_event("SOLAR_TRACKER_GOTO_SUN_STARTED", info)
         if blocking:
             tracking_mirror_positioner.goto(az_target = az_future,

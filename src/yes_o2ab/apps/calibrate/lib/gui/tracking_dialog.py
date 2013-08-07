@@ -1,5 +1,5 @@
 import Tkinter as tk
-from Tkinter import Frame, Button, Label
+from Tkinter import Frame, Button, Label, Checkbutton, IntVar
 from Pmw import Dialog, EntryField
 try:
     #in python >= 2.7 this is in standard library
@@ -13,7 +13,8 @@ from automat.core.gui.pmw_custom.entry_form import EntryForm
 
 ###############################################################################
 from ..common_defs import FIELD_LABEL_FONT
-TRACKING_FIELDS_ENTRY_WIDTH = 9
+FIELD_ENTRY_WIDTH = 9
+DEFAULT_SECONDS_AHEAD = 60
 ###############################################################################
 class TrackingGotoSunDialog(Dialog):
     def __init__(self,
@@ -22,11 +23,32 @@ class TrackingGotoSunDialog(Dialog):
         #set up dialog windows
         Dialog.__init__(self,
                         parent = parent,
-                        title = "Tracking Goto Sun", 
+                        title = "Tracking Go to Sun", 
                         buttons = ('OK',),
                         defaultbutton = 'OK',
                        )
         main_frame = self.interior()
+        top_frame = Frame(main_frame)
+        self.seconds_ahead_field = EntryField(top_frame,
+                                              labelpos    = 'w',
+                                              label_text  = "seconds from now:",
+                                              label_font  = FIELD_LABEL_FONT,
+                                              entry_width = FIELD_ENTRY_WIDTH,
+                                              value = DEFAULT_SECONDS_AHEAD,
+                                              validate = Validator(_min=0.0,_max=86400),
+                                              #entry_state = 'readonly',
+                                              )
+        self.seconds_ahead_field.pack(side='left', anchor="w", expand='no')
+        top_frame.pack(side='top')
+        self.delay_then_capture_variable = IntVar()
+        self.delay_then_capture_button = Checkbutton(main_frame, 
+                                                    text = "delay then capture",
+                                                    font  = FIELD_LABEL_FONT,
+                                                    onvalue = 1, 
+                                                    offvalue = 0,
+                                                    variable = self.delay_then_capture_variable,
+                                                   )
+        self.delay_then_capture_button.pack(side='top')
       
     def activate(self):
         "override activate to construct and send back the action and the new values"
@@ -40,7 +62,7 @@ class TrackingGotoCoordsDialog(Dialog):
         #set up dialog windows
         Dialog.__init__(self,
                         parent = parent,
-                        title = "Tracking Goto Coords", 
+                        title = "Tracking Go to Coords", 
                         buttons = ('OK',),
                         defaultbutton = 'OK',
                        )
@@ -50,7 +72,7 @@ class TrackingGotoCoordsDialog(Dialog):
                                    labelpos    = 'w',
                                    label_text  = "  azimuth target:",
                                    label_font  = FIELD_LABEL_FONT,
-                                   entry_width = TRACKING_FIELDS_ENTRY_WIDTH,
+                                   entry_width = FIELD_ENTRY_WIDTH,
                                    #entry_state = 'readonly',
                                    )
         self.az_field.pack(side='left', anchor="w", expand='no')
@@ -62,7 +84,7 @@ class TrackingGotoCoordsDialog(Dialog):
                                    labelpos    = 'w',
                                    label_text  = "elevation target:",
                                    label_font  = FIELD_LABEL_FONT,
-                                   entry_width = TRACKING_FIELDS_ENTRY_WIDTH,
+                                   entry_width = FIELD_ENTRY_WIDTH,
                                    #entry_state = 'readonly',
                                    )
         self.el_field.pack(side='left', anchor="w", expand='no')
@@ -83,7 +105,7 @@ class TrackingGotoCoordsDialog(Dialog):
     def activate(self):
         "override activate to construct and send back the action and the new values"
         action = Dialog.activate(self)
-        if not (self.az_field.valid() and self.el_field.valid()):
+        if action == 'OK' and not (self.az_field.valid() and self.el_field.valid()):
             return self.activate()
         return action
 

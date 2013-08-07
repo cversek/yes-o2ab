@@ -29,7 +29,7 @@ except ImportError:
 DEFAULT_CONFIGURATION = OrderedDict([
     ('frametype','normal'),
     ('num_captures',1),
-    ('repeat_delay', 0),
+    ('delay', 0.0),
     #('bitdepth','16bit'),    
     #('hbin',1),
     #('vbin',1),
@@ -42,7 +42,7 @@ DEFAULT_CONFIGURATION = OrderedDict([
     ('CCD_temp_setpoint',None),
 ])
 
-SLEEP_TIME = 0.100 #seconds
+SLEEP_TIME = 1.0 #seconds
 ###############################################################################
 class Interface(Controller):
     def __init__(self,**kwargs):
@@ -94,11 +94,17 @@ class Interface(Controller):
             num_captures = self.configuration['num_captures']
             if not num_captures is None:
                 num_captures = int(num_captures)
-            repeat_delay = float(self.configuration['repeat_delay'])
+            delay = float(self.configuration['delay'])
             temp = self.configuration['CCD_temp_setpoint']
             if not temp is None:
                 self.set_CCD_temperature_setpoint(float(temp))
             # START LOOP -------------------------------------------------
+            info = OrderedDict()
+            info['num_captures'] = num_captures
+            info['delay']        = delay
+            info['CCD_temp_setpoint'] = temp
+            info['timestamp'] = time.time()
+            self._send_event("IMAGE_CAPTURE_LOOP_STARTED",info)
             i = 0
             while True:
                 self._thread_abort_breakout_point()
@@ -108,10 +114,23 @@ class Interface(Controller):
                     info['timestamp'] = time.time()
                     self._send_event("IMAGE_CAPTURE_LOOP_STOPPED",info)
                     return
+                # SLEEP for a bit ----------------------------------------
+                #start marking time
+                t0 = time.time()
+                while True:
+                    self.sleep(SLEEP_TIME)
+                    self._thread_abort_breakout_point()
+                    t = time.time()
+                    dt = t - t0
+                    time_left = delay - dt
+                    if time_left <= 0:
+                        break
+                    info = OrderedDict()
+                    info['timestamp'] = time.time()
+                    info['time_left'] = time_left
+                    self._send_event("IMAGE_CAPTURE_LOOP_SLEEPING",info)
                 # CAPTURE ------------------------------------------------
                 self.do_exposure(frametype)
-                # SLEEP for a bit ----------------------------------------
-                self.sleep(repeat_delay)
                 i += 1
                 # REPEAT
         except (AbortInterrupt, Exception), exc:

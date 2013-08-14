@@ -26,9 +26,9 @@ SPECTRUM_METADATA_CONVERTERS = OrderedDict([
     ('CC_temp'               , safe_float_conv),
     ('CH_temp'               , safe_float_conv),
     ('CC_power'              , safe_float_conv),
-    ('SA_press_raw_voltage'  , safe_float_conv),
-    ('SA_temp_raw_voltage'   , safe_float_conv),
-    ('SA_humid_raw_voltage'  , safe_float_conv),
+    ('SA_press'              , safe_float_conv),
+    ('SA_temp'               , safe_float_conv),
+    ('SA_humid'              , safe_float_conv),
     ('FW_temp'               , safe_float_conv),
     ('OT_temp'               , safe_float_conv),
     ('FB_temp'               , safe_float_conv),
@@ -37,4 +37,5 @@ SPECTRUM_METADATA_CONVERTERS = OrderedDict([
     ('EB_temp'               , safe_float_conv),
     ('RA_temp'               , safe_float_conv),
     ('OA_temp'               , safe_float_conv),
+    ('windspeed'               , safe_float_conv),
 ])

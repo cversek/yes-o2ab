@@ -938,7 +938,7 @@ class GUI:
     def _tracking_busy(self):
         #throw up a busy message
         msg = "Please wait while tracking mirror is moved..."
-        self._busy_dialog(msg)
+        self.busy_dialog(msg)
         self.tracking_fields['azimuth'].configure(entry_fg = "dark gray")
         self.tracking_fields['elevation'].configure(entry_fg = "dark gray")
         

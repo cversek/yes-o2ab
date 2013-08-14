@@ -411,6 +411,32 @@ class GUI:
         self.enable_control_buttons()
         self.win.config(cursor="")
         
+    def busy_dialog(self, msg):
+        self.busy()
+        self.wait_msg_window = tk.Toplevel(self.win)
+        tk.Label(self.wait_msg_window,text=msg, font=HEADING_LABEL_FONT).pack(fill="both",expand="yes", padx=1,pady=1)
+        # get screen width and height
+        ws = self.win.winfo_screenwidth()
+        hs = self.win.winfo_screenheight()
+        w = ws/2
+        h = hs/4
+        # calculate position x, y
+        x = (ws/2) - (w/2)
+        y = (hs/2) - (h/2)
+        self.wait_msg_window.geometry("%dx%d+%d+%d" % (w,h,x,y))
+        self.wait_msg_window.update()
+        self.wait_msg_window.lift()
+        self.wait_msg_window.grab_set()
+        self.app.print_comment(msg)
+    
+    def end_busy_dialog(self):
+        self.not_busy()
+        self.app.print_comment("busy dialog finished")
+        try:
+            self.wait_msg_window.destroy()
+        except AttributeError: #ignore case when the window doesn't exist
+            return
+        
     def disable_control_buttons(self):
         self.change_capture_settings_button.configure(state="disabled")
         self.capture_continually_button.configure(state="disabled")
@@ -694,23 +720,8 @@ class GUI:
             elif choice == 'Force':
                 self.app.print_comment("forcing through '(unknown)' band state.")
         #throw up a busy message
-        msg = "Please wait while the band is switched to '%s' and the filter is switched to position %d..." % (new_band,pos)
-        self.busy()
-        self.wait_msg_window = tk.Toplevel(self.win)
-        tk.Label(self.wait_msg_window,text=msg, font=HEADING_LABEL_FONT).pack(fill="both",expand="yes", padx=1,pady=1)
-        # get screen width and height
-        ws = self.win.winfo_screenwidth()
-        hs = self.win.winfo_screenheight()
-        w = ws/2
-        h = hs/4
-        # calculate position x, y
-        x = (ws/2) - (w/2)
-        y = (hs/2) - (h/2)
-        self.wait_msg_window.geometry("%dx%d+%d+%d" % (w,h,x,y))
-        self.wait_msg_window.update()
-        self.wait_msg_window.lift()
-        self.wait_msg_window.grab_set()
-        self.app.print_comment(msg)
+        msg = "Please wait while the band is switched to '%s'\n and the filter is switched to position %d..." % (new_band,pos)
+        self.busy_dialog(msg)
         #get the current settings
         band_switcher = self.app.config.load_controller('band_switcher')
         curr_band = band_switcher.band
@@ -750,9 +761,7 @@ class GUI:
             #finish up
             md = self.app.query_metadata()
             self._update_optics_fields(md)
-            self.not_busy()
-            self.app.print_comment("finished")
-            self.wait_msg_window.destroy()
+            self.end_busy_dialog()
             self.filter_select_dialog.deactivate()
             
     def band_adjust(self, step_direction):
@@ -831,7 +840,10 @@ class GUI:
     def center_focus(self):
         self.app.print_comment("Centering the focus.")
         self.app.center_focus(blocking = False)
+        msg = "Please wait while the focuser is centered..."
+        self.busy_dialog(msg)
         self._wait_on_focus_adjust_loop()
+        
         
     def _wait_on_focus_adjust_loop(self):
         #check the controller states
@@ -851,7 +863,7 @@ class GUI:
             md = self.app.query_metadata()
             self._update_optics_fields(md)
             self.focus_adjust_position_field.configure(entry_fg = "black")
-            self.not_busy()
+            self.end_busy_dialog()
             self.app.print_comment("finished")
             if self._capture_mode == "on_adjust":
                 #check to see if a capture is already running
@@ -905,10 +917,10 @@ class GUI:
             el_CW_limit  = float(tracking_mirror_positioner.configuration['el_CW_limit'])
             el_CCW_limit = float(tracking_mirror_positioner.configuration['el_CCW_limit'])
             dlg.set_limits(az_CW_limit  = az_CW_limit,
-                                                        az_CCW_limit = az_CCW_limit,
-                                                        el_CW_limit  = el_CW_limit,
-                                                        el_CCW_limit = el_CCW_limit,
-                                                       )
+                           az_CCW_limit = az_CCW_limit,
+                           el_CW_limit  = el_CW_limit,
+                           el_CCW_limit = el_CCW_limit,
+                          )
             dlg.az_field.setvalue(tracking_mirror_positioner.az_pos)
             dlg.el_field.setvalue(tracking_mirror_positioner.el_pos)
             action = dlg.activate()
@@ -926,23 +938,7 @@ class GUI:
     def _tracking_busy(self):
         #throw up a busy message
         msg = "Please wait while tracking mirror is moved..."
-        self.busy()
-        self.disable_control_buttons()
-        self.wait_msg_window = tk.Toplevel(self.win)
-        tk.Label(self.wait_msg_window,text=msg, font=HEADING_LABEL_FONT).pack(fill="both",expand="yes", padx=1,pady=1)
-        # get screen width and height
-        ws = self.win.winfo_screenwidth()
-        hs = self.win.winfo_screenheight()
-        w = ws/2
-        h = hs/4
-        # calculate position x, y
-        x = (ws/2) - (w/2)
-        y = (hs/2) - (h/2)
-        self.wait_msg_window.geometry("%dx%d+%d+%d" % (w,h,x,y))
-        self.wait_msg_window.update()
-        self.wait_msg_window.lift()
-        self.wait_msg_window.grab_set()
-        self.app.print_comment(msg)
+        self._busy_dialog(msg)
         self.tracking_fields['azimuth'].configure(entry_fg = "dark gray")
         self.tracking_fields['elevation'].configure(entry_fg = "dark gray")
         
@@ -967,10 +963,7 @@ class GUI:
             self._update_tracking_fields(md)
             self.tracking_fields['azimuth'].configure(entry_fg = "black")
             self.tracking_fields['elevation'].configure(entry_fg = "black")
-            self.not_busy()
-            self.enable_control_buttons()
-            self.wait_msg_window.destroy()
-            self.app.print_comment("finished")
+            self.end_busy_dialog()
             if mode == 'home':
                 return
             elif mode == 'zenith' or mode == "coords":
@@ -991,10 +984,10 @@ class GUI:
     def _update_tracking_fields(self, md):
         azimuth = md.get('azimuth')
         if not azimuth is None:
-            self.tracking_fields['azimuth'].setvalue()
+            self.tracking_fields['azimuth'].setvalue(azimuth)
         elevation = md.get('elevation')
         if not elevation is None:
-            self.tracking_fields['elevation'].setvalue(md['elevation'])
+            self.tracking_fields['elevation'].setvalue(elevation)
                 
     def replot_raw_spectrum(self):
         self.raw_spectrum_plot_template._has_been_plotted = False

@@ -37,5 +37,5 @@ SPECTRUM_METADATA_CONVERTERS = OrderedDict([
     ('EB_temp'               , safe_float_conv),
     ('RA_temp'               , safe_float_conv),
     ('OA_temp'               , safe_float_conv),
-    ('windspeed'               , safe_float_conv),
+    ('windspeed'             , safe_float_conv),
 ])

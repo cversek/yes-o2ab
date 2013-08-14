@@ -3,7 +3,7 @@
 spectrum_csv_parser.py
 
 """
-import os, datetime, re, StringIO
+import os, datetime, re, StringIO, warnings
 import numpy
 import yaml
 
@@ -54,7 +54,10 @@ def parsefile(filename):
     #now convert the metadata to an OrderedDict and handle special conversions
     metadata = OrderedDict()
     for key, conv in SPECTRUM_METADATA_CONVERTERS.items():
-        metadata[key] = conv(metadata_dict[key])
+        try:
+            metadata[key] = conv(metadata_dict[key])
+        except KeyError:
+            warnings.warn("the metadata key '%s' was not found, likely an older file format version" % key)
     #feed the body to numpy's CSV loader as a StringIO file-like object
     D = numpy.loadtxt(StringIO.StringIO(body), delimiter=',', dtype = 'int32').transpose()
     data = {}

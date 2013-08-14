@@ -989,8 +989,12 @@ class GUI:
                     self.capture_once(delay=time_left)
                 
     def _update_tracking_fields(self, md):
-        self.tracking_fields['azimuth'].setvalue(md['azimuth'])
-        self.tracking_fields['elevation'].setvalue(md['elevation'])
+        azimuth = md.get('azimuth')
+        if not azimuth is None:
+            self.tracking_fields['azimuth'].setvalue()
+        elevation = md.get('elevation')
+        if not elevation is None:
+            self.tracking_fields['elevation'].setvalue(md['elevation'])
                 
     def replot_raw_spectrum(self):
         self.raw_spectrum_plot_template._has_been_plotted = False

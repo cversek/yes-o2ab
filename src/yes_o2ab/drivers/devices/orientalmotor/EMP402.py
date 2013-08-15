@@ -259,7 +259,7 @@ class Interface(Model, SerialCommunicationsMixIn):
             raise IOError("could not initialize command prompt of %s in %d attempts" % (self.identify(),attempts))
     
     def _send_command(self, cmd):
-        #print "!!! SEND COMMAND:", cmd
+        print "!!! SEND COMMAND:", cmd
         self._send(cmd)
         self.ser.flushOutput()
         

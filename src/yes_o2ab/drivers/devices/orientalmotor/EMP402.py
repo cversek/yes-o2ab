@@ -206,14 +206,15 @@ class Interface(Model, SerialCommunicationsMixIn):
     
     def _send_command(self, cmd):
         print "!!! SEND COMMAND:", cmd
-        #send the command one character at a time
-        for c in cmd:
-            #print "\t",c
-            self.ser.write(c)
-            self.ser.flushOutput()
-            time.sleep(DELAY)
-            #self.ser.read(1)
-        self._send("")# send EOL
+#        #send the command one character at a time
+#        for c in cmd:
+#            #print "\t",c
+#            self.ser.write(c)
+#            self.ser.flushOutput()
+#            time.sleep(DELAY)
+#            #self.ser.read(1)
+#        self._send("")# send EOL
+        self._send(cmd)
         self.ser.flushOutput()
         
     def _exchange_command(self, cmd):

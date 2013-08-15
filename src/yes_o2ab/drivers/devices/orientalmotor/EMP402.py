@@ -107,6 +107,19 @@ class Interface(Model, SerialCommunicationsMixIn):
         self._send_command("VS%d %d" % (axis,start_speed))         #p. 85, start speed Hz 
         operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)         
         self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz    
+        #configure speed ramping
+        if not ramp_mode is None:
+            if ramp_mode == 'linear':
+                self._send_command("RAMP%d 0" % (axis,))        #p. 78, ramp mode
+            elif ramp_mode == 'limit jerk':
+                if not jerk_time is None:
+                    jerk_time = int(jerk_time)
+                    self._send_command("RAMP%d 1, %d" % (axis,jerk_time)) #p. 78, ramp mode
+                else:
+                    self._send_command("RAMP%d 1" % (axis,))    #p. 78, ramp mode
+            else:
+                raise ValueError("'ramp_mode' must be either 'linear' or 'limit jerk', got %s" % ramp_mode)
+        #configure direction
         if direction == 'CW':
             self._send_command("H%d +" % axis)                     #p. 70, set direction flag
         elif direction == 'CCW':
@@ -127,12 +140,26 @@ class Interface(Model, SerialCommunicationsMixIn):
                steps           = STEPS_DEFAULT, 
                start_speed     = SPEED_DEFAULT,
                operating_speed = SPEED_DEFAULT,
+               ramp_mode = None,
+               jerk_time = None,
               ):
         self._send_command("PULSE%d 1" % (axis,))               #p. 77, set pulse output mode to "1-pulse mode"
-        start_speed = constrain(start_speed, SPEED_MIN, SPEED_MAX)         
+        start_speed = constrain(start_speed, SPEED_MIN, SPEED_MAX)
         self._send_command("VS%d %d" % (axis,start_speed))      #p. 85, start speed Hz 
-        operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)         
-        self._send_command("V%d %d" % (axis,operating_speed))   #p. 85, operating speed Hz    
+        operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)
+        self._send_command("V%d %d" % (axis,operating_speed))   #p. 85, operating speed Hz
+        #configure speed ramping
+        if not ramp_mode is None:
+            if ramp_mode == 'linear':
+                self._send_command("RAMP%d 0" % (axis,))        #p. 78, ramp mode
+            elif ramp_mode == 'limit jerk':
+                if not jerk_time is None:
+                    jerk_time = int(jerk_time)
+                    self._send_command("RAMP%d 1, %d" % (axis,jerk_time)) #p. 78, ramp mode
+                else:
+                    self._send_command("RAMP%d 1" % (axis,))    #p. 78, ramp mode
+            else:
+                raise ValueError("'ramp_mode' must be either 'linear' or 'limit jerk', got %s" % ramp_mode)
         self._send_command("H%d +" % (axis,))                   #p. 70, set direction flag
         self._send_command("D%d %d" % (axis, steps))            #p. 64, steps to rotate
         #start the motion, incremental
@@ -145,6 +172,8 @@ class Interface(Model, SerialCommunicationsMixIn):
                   offset,
                   start_speed,
                   operating_speed,
+                  ramp_mode = None,
+                  jerk_time = None,
                  ):
         #sensor mode configuration
         if sensor_mode == 2:
@@ -163,7 +192,19 @@ class Interface(Model, SerialCommunicationsMixIn):
         start_speed = constrain(start_speed, SPEED_MIN, SPEED_MAX)         
         self._send_command("VS%d %d" % (axis,start_speed))         #p. 85, start speed Hz 
         operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)         
-        self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz    
+        self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz
+        #configure speed ramping
+        if not ramp_mode is None:
+            if ramp_mode == 'linear':
+                self._send_command("RAMP%d 0" % (axis,))        #p. 78, ramp mode
+            elif ramp_mode == 'limit jerk':
+                if not jerk_time is None:
+                    jerk_time = int(jerk_time)
+                    self._send_command("RAMP%d 1, %d" % (axis,jerk_time)) #p. 78, ramp mode
+                else:
+                    self._send_command("RAMP%d 1" % (axis,))    #p. 78, ramp mode
+            else:
+                raise ValueError("'ramp_mode' must be either 'linear' or 'limit jerk', got %s" % ramp_mode)
         #start the mechanical home seeking
         self._send_command("MHOME%d" % axis)
     

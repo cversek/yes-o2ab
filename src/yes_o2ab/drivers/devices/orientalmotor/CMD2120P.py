@@ -11,6 +11,8 @@ from automat.core.hwcontrol.devices.instruments import Model
 SPEED_MIN       = 10 #Hz
 SPEED_MAX       = 200000 #Hz
 SPEED_DEFAULT   = SPEED_MIN
+RAMP_MODE_DEFAULT  = 'linear'
+JERK_TIME_DEFAULT  = 50
 STEPS_MAX          = 16777215
 STEPS_MIN          = -STEPS_MAX
 STEPS_DEFAULT      = 1
@@ -28,10 +30,13 @@ def constrain(val, min_val, max_val):
 ###############################################################################
 class Interface(Model):
     def __init__(self, 
-                 motor_controller, 
+                 motor_controller,
                  axis, 
                  degrees_per_step,
+                 default_start_speed,
                  default_speed,
+                 default_ramp_mode,
+                 default_jerk_time,
                  limit_sensor_true,
                  home_sensor_true,
                  slit_sensor_true,
@@ -40,7 +45,10 @@ class Interface(Model):
         self.motor_controller  = motor_controller
         self.axis              = axis
         self.degrees_per_step  = degrees_per_step
-        self.default_speed     = default_speed
+        self.default_start_speed = default_start_speed
+        self.default_speed       = default_speed
+        self.default_ramp_mode   = default_ramp_mode
+        self.default_jerk_time   = default_jerk_time
         self._limit_sensor_true = limit_sensor_true
         self._home_sensor_true  = home_sensor_true
         self._slit_sensor_true  = slit_sensor_true
@@ -62,22 +70,30 @@ class Interface(Model):
                                 offset_angle    = 0,
                                 start_speed     = None,
                                 operating_speed = None,
+                                ramp_mode = None,
+                                jerk_time = None,
                                ):
         self._limit_sensor_config = {}
         #sensor mode configuration
         if sensor_mode in [2,3]:
-            self._limit_sensor_config['sensor_mode'] = sensor_mode 
+            self._limit_sensor_config['sensor_mode'] = sensor_mode
         else:
             raise ValueError, "'sensor_mode' must be 2 or 3"
         #motion configuration
         offset = int(round(offset_angle/self.degrees_per_step))
         self._limit_sensor_config['offset'] = offset
         if start_speed is None:
-            start_speed = self.default_speed
+            start_speed = self.default_start_speed
         if operating_speed is None:
-            operating_speed = start_speed
+            operating_speed = self.default_speed
+        if ramp_mode is None:
+            ramp_mode = self.default_ramp_mode
+        if jerk_time is None:
+            jerk_time = self.default_jerk_time
         self._limit_sensor_config['start_speed']     = start_speed
         self._limit_sensor_config['operating_speed'] = operating_speed
+        self._limit_sensor_config['ramp_mode']       = ramp_mode
+        self._limit_sensor_config['jerk_time']       = jerk_time
         
     def test(self):
         soft_rev     = self.motor_controller._exchange("? SOFT")
@@ -113,14 +129,20 @@ class Interface(Model):
                    direction = 'CW',
                    angular_start_speed     = None,
                    angular_operating_speed = None,
+                   ramp_mode = None,
+                   jerk_time = None,
                    blocking = True,
                   ):
         "move to an absolute angle (degrees), at angular speed (degrees/second)"
         #print "!!! DEBUG goto_angle, angle=",angle
         if angular_start_speed is None:
-            angular_start_speed = self.default_speed*self.degrees_per_step
+            angular_start_speed = self.default_start_speed*self.degrees_per_step
         if angular_operating_speed is None:
-            angular_operating_speed = angular_start_speed
+            angular_operating_speed = self.default_speed*self.degrees_per_step
+        if ramp_mode is None:
+            ramp_mode = self.default_ramp_mode
+        if jerk_time is None:
+            jerk_time = self.default_jerk_time
         #compute step position and step speed from angle
         pos = int(round(angle/self.degrees_per_step))
         start_speed     = int(round(angular_start_speed/self.degrees_per_step))
@@ -131,6 +153,8 @@ class Interface(Model):
                                             direction = direction,
                                             start_speed     = start_speed,
                                             operating_speed = operating_speed,
+                                            ramp_mode = ramp_mode,
+                                            jerk_time = jerk_time,
                                            )
         if blocking:
             self.wait_on_move()
@@ -141,6 +165,8 @@ class Interface(Model):
                angle,
                angular_start_speed     = None, 
                angular_operating_speed = None,
+               ramp_mode = None,
+               jerk_time = None,
                blocking = True,
               ):
         "move by an angle (degrees) relative to current position, at angular speed (degrees/second)"
@@ -148,6 +174,10 @@ class Interface(Model):
             angular_start_speed = self.default_speed*self.degrees_per_step
         if angular_operating_speed is None:
             angular_operating_speed = angular_start_speed
+        if ramp_mode is None:
+            ramp_mode = self.default_ramp_mode
+        if jerk_time is None:
+            jerk_time = self.default_jerk_time
         #compute steps and step speed from angle
         steps = int(round(angle/self.degrees_per_step))
         start_speed     = int(round(angular_start_speed/self.degrees_per_step))
@@ -157,17 +187,22 @@ class Interface(Model):
                                      steps = steps,
                                      start_speed     = start_speed,
                                      operating_speed = operating_speed,
+                                     ramp_mode = ramp_mode,
+                                     jerk_time = jerk_time,
                                     )
         if blocking:
             self.wait_on_move()
         #send back the actual angle that was rotated
         return steps*self.degrees_per_step
         
-    def seek_home(self, direction, blocking = True):
+    def seek_home(self,
+                  direction,
+                  blocking = True
+                 ):
         #print "!!! DEBUG seek_home, direction =", direction
         if self._limit_sensor_config is None:
             raise RuntimeError, "user must first call 'configure_limit_sensors'"
-        self._limit_sensor_config['axis'] = self.axis
+        self._limit_sensor_config['axis']      = self.axis
         self._limit_sensor_config['direction'] = direction
         self.motor_controller.seek_home(**self._limit_sensor_config)
         if blocking:
@@ -190,37 +225,63 @@ class Interface(Model):
 # INTERFACE CONFIGURATOR         
 def get_interface(motor_controller, 
                   axis, 
-                  degrees_per_step, 
-                  default_speed = None, 
-                  limit_sensor_true = None,
-                  home_sensor_true = None,
-                  slit_sensor_true = None,
+                  degrees_per_step,
+                  default_start_speed = None,
+                  default_speed       = None,
+                  default_ramp_mode   = None,
+                  default_jerk_time   = None,
+                  limit_sensor_true   = None,
+                  home_sensor_true    = None,
+                  slit_sensor_true    = None,
                   ):
     axis = int(axis)
     degrees_per_step = float(degrees_per_step)
+    
+    if default_start_speed is None:
+        default_start_speed = SPEED_DEFAULT
+    else:
+        default_start_speed = int(default_start_speed)
+    
     if default_speed is None:
-        default_speed = SPEED_DEFAULT    
+        default_speed = SPEED_DEFAULT
     else:
         default_speed = int(default_speed)
+    
+    if default_ramp_mode is None:
+        default_ramp_mode = RAMP_MODE_DEFAULT
+    elif not default_ramp_mode in ['linear','limit jerk']:
+        raise ValueError("'default_ramp_mode' must be either 'linear' or 'limit jerk'")
+    
+    if default_jerk_time is None:
+        default_jerk_time = JERK_TIME_DEFAULT
+    else:
+        default_jerk_time = int(default_jerk_time)
+    
     if limit_sensor_true is None:
-        limit_sensor_true = LIMIT_SENSOR_TRUE_DEFAULT    
+        limit_sensor_true = LIMIT_SENSOR_TRUE_DEFAULT
     else:
         limit_sensor_true = int(bool(int(limit_sensor_true)))
+    
     if home_sensor_true is None:
-        home_sensor_true = HOME_SENSOR_TRUE_DEFAULT    
+        home_sensor_true = HOME_SENSOR_TRUE_DEFAULT
     else:
         home_sensor_true = int(bool(int(home_sensor_true)))
+    
     if slit_sensor_true is None:
-        slit_sensor_true = SLIT_SENSOR_TRUE_DEFAULT    
+        slit_sensor_true = SLIT_SENSOR_TRUE_DEFAULT
     else:
         slit_sensor_true = int(bool(int(slit_sensor_true)))
-    return Interface(motor_controller, 
-                     axis, 
-                     degrees_per_step, 
-                     default_speed,
-                     limit_sensor_true,
-                     home_sensor_true,
-                     slit_sensor_true,
+    
+    return Interface(motor_controller    = motor_controller,
+                     axis                = axis,
+                     degrees_per_step    = degrees_per_step,
+                     default_start_speed = default_start_speed,
+                     default_speed       = default_speed,
+                     default_ramp_mode   = default_ramp_mode,
+                     default_jerk_time   = default_jerk_time,
+                     limit_sensor_true   = limit_sensor_true,
+                     home_sensor_true    = home_sensor_true,
+                     slit_sensor_true    = slit_sensor_true,
                     )
     
 ###############################################################################

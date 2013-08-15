@@ -102,6 +102,7 @@ class Interface(Model, SerialCommunicationsMixIn):
                       start_speed     = SPEED_DEFAULT,
                       operating_speed = SPEED_DEFAULT,
                       ramp_mode = None,
+                      acceleration = None,
                       jerk_time = None,
                      ):
         self._send_command("PULSE%d 1" % axis)                     #p. 77, set pulse output mode to "1-pulse mode"

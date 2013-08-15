@@ -36,8 +36,8 @@ class Interface(Model):
                  degrees_per_step,
                  default_start_speed,
                  default_speed,
-                 default_ramp_mode,
                  default_acceleration,
+                 default_ramp_mode,
                  default_jerk_time,
                  limit_sensor_true,
                  home_sensor_true,
@@ -49,8 +49,8 @@ class Interface(Model):
         self.degrees_per_step  = degrees_per_step
         self.default_start_speed  = default_start_speed
         self.default_speed        = default_speed
-        self.default_ramp_mode    = default_ramp_mode
         self.default_acceleration = default_acceleration
+        self.default_ramp_mode    = default_ramp_mode
         self.default_jerk_time    = default_jerk_time
         self._limit_sensor_true = limit_sensor_true
         self._home_sensor_true  = home_sensor_true
@@ -73,8 +73,9 @@ class Interface(Model):
                                 offset_angle    = 0,
                                 start_speed     = None,
                                 operating_speed = None,
-                                ramp_mode = None,
-                                jerk_time = None,
+                                acceleration    = None,
+                                ramp_mode       = None,
+                                jerk_time       = None,
                                ):
         self._limit_sensor_config = {}
         #sensor mode configuration
@@ -89,12 +90,15 @@ class Interface(Model):
             start_speed = self.default_start_speed
         if operating_speed is None:
             operating_speed = self.default_speed
+        if acceleration is None:
+            acceleration = self.default_acceleration
         if ramp_mode is None:
             ramp_mode = self.default_ramp_mode
         if jerk_time is None:
             jerk_time = self.default_jerk_time
         self._limit_sensor_config['start_speed']     = start_speed
         self._limit_sensor_config['operating_speed'] = operating_speed
+        self._limit_sensor_config['acceleration']    = acceleration
         self._limit_sensor_config['ramp_mode']       = ramp_mode
         self._limit_sensor_config['jerk_time']       = jerk_time
         
@@ -143,10 +147,10 @@ class Interface(Model):
             angular_start_speed = self.default_start_speed*self.degrees_per_step
         if angular_operating_speed is None:
             angular_operating_speed = self.default_speed*self.degrees_per_step
-        if ramp_mode is None:
-            ramp_mode = self.default_ramp_mode
         if angular_acceleration is None:
             angular_acceleration = self.default_acceleration*self.degrees_per_step
+        if ramp_mode is None:
+            ramp_mode = self.default_ramp_mode
         if jerk_time is None:
             jerk_time = self.default_jerk_time
         #compute step position and step speed from angle
@@ -160,8 +164,8 @@ class Interface(Model):
                                             direction = direction,
                                             start_speed     = start_speed,
                                             operating_speed = operating_speed,
-                                            ramp_mode    = ramp_mode,
                                             acceleration = acceleration,
+                                            ramp_mode    = ramp_mode,
                                             jerk_time    = jerk_time,
                                            )
         if blocking:
@@ -173,8 +177,8 @@ class Interface(Model):
                angle,
                angular_start_speed     = None, 
                angular_operating_speed = None,
-               ramp_mode            = None,
                angular_acceleration = None,
+               ramp_mode            = None,
                jerk_time            = None,
                blocking = True,
               ):
@@ -183,10 +187,10 @@ class Interface(Model):
             angular_start_speed = self.default_speed*self.degrees_per_step
         if angular_operating_speed is None:
             angular_operating_speed = angular_start_speed
-        if ramp_mode is None:
-            ramp_mode = self.default_ramp_mode
         if angular_acceleration is None:
             angular_acceleration = self.default_acceleration*self.degrees_per_step
+        if ramp_mode is None:
+            ramp_mode = self.default_ramp_mode
         if jerk_time is None:
             jerk_time = self.default_jerk_time
         #compute steps and step speed from angle
@@ -199,8 +203,8 @@ class Interface(Model):
                                      steps = steps,
                                      start_speed     = start_speed,
                                      operating_speed = operating_speed,
-                                     ramp_mode    = ramp_mode,
                                      acceleration = acceleration,
+                                     ramp_mode    = ramp_mode,
                                      jerk_time    = jerk_time,
                                     )
         if blocking:
@@ -241,8 +245,8 @@ def get_interface(motor_controller,
                   degrees_per_step,
                   default_start_speed  = None,
                   default_speed        = None,
-                  default_ramp_mode    = None,
                   default_acceleration = None,
+                  default_ramp_mode    = None,
                   default_jerk_time    = None,
                   limit_sensor_true    = None,
                   home_sensor_true     = None,
@@ -261,15 +265,16 @@ def get_interface(motor_controller,
     else:
         default_speed = int(default_speed)
     
+    if default_acceleration is None:
+        default_acceleration = ACCELERATION_DEFAULT
+    else:
+        default_acceleration = float(default_acceleration)
+    
     if default_ramp_mode is None:
         default_ramp_mode = RAMP_MODE_DEFAULT
     elif not default_ramp_mode in ['linear','limit jerk']:
         raise ValueError("'default_ramp_mode' must be either 'linear' or 'limit jerk'")
     
-    if default_acceleration is None:
-        default_acceleration = ACCELERATION_DEFAULT
-    else:
-        default_acceleration = float(default_acceleration)
         
     if default_jerk_time is None:
         default_jerk_time = JERK_TIME_DEFAULT
@@ -296,8 +301,8 @@ def get_interface(motor_controller,
                      degrees_per_step     = degrees_per_step,
                      default_start_speed  = default_start_speed,
                      default_speed        = default_speed,
-                     default_ramp_mode    = default_ramp_mode,
                      default_acceleration = default_acceleration,
+                     default_ramp_mode    = default_ramp_mode,
                      default_jerk_time    = default_jerk_time,
                      limit_sensor_true    = limit_sensor_true,
                      home_sensor_true     = home_sensor_true,

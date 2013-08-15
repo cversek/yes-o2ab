@@ -101,9 +101,9 @@ class Interface(Model, SerialCommunicationsMixIn):
                       direction = 'CW',
                       start_speed     = SPEED_DEFAULT,
                       operating_speed = SPEED_DEFAULT,
-                      ramp_mode = None,
                       acceleration = None,
-                      jerk_time = None,
+                      ramp_mode    = None,
+                      jerk_time    = None,
                      ):
         self._send_command("PULSE%d 1" % axis)                     #p. 77, set pulse output mode to "1-pulse mode"
         start_speed = constrain(start_speed, SPEED_MIN, SPEED_MAX)
@@ -111,12 +111,12 @@ class Interface(Model, SerialCommunicationsMixIn):
         self._send_command("VS%d %d" % (axis,start_speed))         #p. 85, start speed Hz 
         operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)
         self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz
+        if acceleration is None:
+            acceleration = self.default_acceleration
+        self._send_command("T%d %0.1f" % (axis,acceleration))      #p. 82, acceleration/deceleration
         if not ramp_mode is None:
             if ramp_mode == 'linear':
                 self._send_command("RAMP%d 0" % (axis,))        #p. 78, ramp mode
-                if acceleration is None:
-                    acceleration = self.default_acceleration
-                self._send_command("T%d %0.1f" % (axis,acceleration)) #p. 82, acceleration/deceleration
             elif ramp_mode == 'limit jerk':
                 if not jerk_time is None:
                     jerk_time = float(jerk_time)
@@ -146,8 +146,8 @@ class Interface(Model, SerialCommunicationsMixIn):
                steps           = STEPS_DEFAULT, 
                start_speed     = SPEED_DEFAULT,
                operating_speed = SPEED_DEFAULT,
-               ramp_mode    = None,
                acceleration = None,
+               ramp_mode    = None,
                jerk_time    = None,
               ):
         self._send_command("PULSE%d 1" % (axis,))               #p. 77, set pulse output mode to "1-pulse mode"
@@ -156,12 +156,12 @@ class Interface(Model, SerialCommunicationsMixIn):
         self._send_command("VS%d %d" % (axis,start_speed))      #p. 85, start speed Hz 
         operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)
         self._send_command("V%d %d" % (axis,operating_speed))   #p. 85, operating speed Hz
+        if acceleration is None:
+            acceleration = self.default_acceleration
+        self._send_command("T%d %0.1f" % (axis,acceleration))      #p. 82, acceleration/deceleration
         if not ramp_mode is None:
             if ramp_mode == 'linear':
                 self._send_command("RAMP%d 0" % (axis,))        #p. 78, ramp mode
-                if acceleration is None:
-                    acceleration = self.default_acceleration
-                self._send_command("T%d %0.1f" % (axis,acceleration)) #p. 82, acceleration/deceleration
             elif ramp_mode == 'limit jerk':
                 if not jerk_time is None:
                     jerk_time = float(jerk_time)
@@ -183,8 +183,9 @@ class Interface(Model, SerialCommunicationsMixIn):
                   offset,
                   start_speed,
                   operating_speed,
-                  ramp_mode = None,
-                  jerk_time = None,
+                  acceleration = None,
+                  ramp_mode    = None,
+                  jerk_time    = None,
                  ):
         #sensor mode configuration
         if sensor_mode == 2:
@@ -205,12 +206,12 @@ class Interface(Model, SerialCommunicationsMixIn):
         self._send_command("VS%d %d" % (axis,start_speed))         #p. 85, start speed Hz 
         operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)
         self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz
+        if acceleration is None:
+            acceleration = self.default_acceleration
+        self._send_command("T%d %0.1f" % (axis,acceleration))      #p. 82, acceleration/deceleration
         if not ramp_mode is None:
             if ramp_mode == 'linear':
                 self._send_command("RAMP%d 0" % (axis,))        #p. 78, ramp mode
-                if acceleration is None:
-                    acceleration = self.default_acceleration
-                self._send_command("T%d %0.1f" % (axis,acceleration)) #p. 82, acceleration/deceleration
             elif ramp_mode == 'limit jerk':
                 if not jerk_time is None:
                     jerk_time = float(jerk_time)

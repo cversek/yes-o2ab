@@ -11,7 +11,7 @@ from automat.core.hwcontrol.devices.instruments import Model
 SPEED_MIN       = 10 #Hz
 SPEED_MAX       = 200000 #Hz
 SPEED_DEFAULT   = SPEED_MIN
-RAMP_MODE_DEFAULT    = 'linear'
+RAMP_MODE_DEFAULT  = 'linear'
 ACCELERATION_DEFAULT = 30 #ms/kHz
 JERK_TIME_DEFAULT    = 50 #ms
 STEPS_MAX          = 16777215
@@ -37,6 +37,7 @@ class Interface(Model):
                  default_start_speed,
                  default_speed,
                  default_ramp_mode,
+                 default_acceleration,
                  default_jerk_time,
                  limit_sensor_true,
                  home_sensor_true,
@@ -46,10 +47,11 @@ class Interface(Model):
         self.motor_controller  = motor_controller
         self.axis              = axis
         self.degrees_per_step  = degrees_per_step
-        self.default_start_speed = default_start_speed
-        self.default_speed       = default_speed
-        self.default_ramp_mode   = default_ramp_mode
-        self.default_jerk_time   = default_jerk_time
+        self.default_start_speed  = default_start_speed
+        self.default_speed        = default_speed
+        self.default_ramp_mode    = default_ramp_mode
+        self.default_acceleration = default_acceleration
+        self.default_jerk_time    = default_jerk_time
         self._limit_sensor_true = limit_sensor_true
         self._home_sensor_true  = home_sensor_true
         self._slit_sensor_true  = slit_sensor_true
@@ -130,8 +132,9 @@ class Interface(Model):
                    direction = 'CW',
                    angular_start_speed     = None,
                    angular_operating_speed = None,
-                   ramp_mode = None,
-                   jerk_time = None,
+                   ramp_mode            = None,
+                   angular_acceleration = None,
+                   jerk_time            = None,
                    blocking = True,
                   ):
         "move to an absolute angle (degrees), at angular speed (degrees/second)"
@@ -142,20 +145,24 @@ class Interface(Model):
             angular_operating_speed = self.default_speed*self.degrees_per_step
         if ramp_mode is None:
             ramp_mode = self.default_ramp_mode
+        if angular_acceleration is None:
+            angular_acceleration = self.default_acceleration*self.degrees_per_step
         if jerk_time is None:
             jerk_time = self.default_jerk_time
         #compute step position and step speed from angle
         pos = int(round(angle/self.degrees_per_step))
         start_speed     = int(round(angular_start_speed/self.degrees_per_step))
-        operating_speed = int(round(angular_operating_speed/self.degrees_per_step)) 
+        operating_speed = int(round(angular_operating_speed/self.degrees_per_step))
+        acceleration    = int(round(angular_acceleration/self.degrees_per_step))
         self.motor_controller.goto_position(
                                             axis = self.axis,
                                             pos = pos,
                                             direction = direction,
                                             start_speed     = start_speed,
                                             operating_speed = operating_speed,
-                                            ramp_mode = ramp_mode,
-                                            jerk_time = jerk_time,
+                                            ramp_mode    = ramp_mode,
+                                            acceleration = acceleration,
+                                            jerk_time    = jerk_time,
                                            )
         if blocking:
             self.wait_on_move()
@@ -166,8 +173,9 @@ class Interface(Model):
                angle,
                angular_start_speed     = None, 
                angular_operating_speed = None,
-               ramp_mode = None,
-               jerk_time = None,
+               ramp_mode            = None,
+               angular_acceleration = None,
+               jerk_time            = None,
                blocking = True,
               ):
         "move by an angle (degrees) relative to current position, at angular speed (degrees/second)"
@@ -177,19 +185,23 @@ class Interface(Model):
             angular_operating_speed = angular_start_speed
         if ramp_mode is None:
             ramp_mode = self.default_ramp_mode
+        if angular_acceleration is None:
+            angular_acceleration = self.default_acceleration*self.degrees_per_step
         if jerk_time is None:
             jerk_time = self.default_jerk_time
         #compute steps and step speed from angle
         steps = int(round(angle/self.degrees_per_step))
         start_speed     = int(round(angular_start_speed/self.degrees_per_step))
         operating_speed = int(round(angular_operating_speed/self.degrees_per_step))
+        acceleration    = int(round(angular_acceleration/self.degrees_per_step))
         self.motor_controller.rotate(
                                      axis  = self.axis,
                                      steps = steps,
                                      start_speed     = start_speed,
                                      operating_speed = operating_speed,
-                                     ramp_mode = ramp_mode,
-                                     jerk_time = jerk_time,
+                                     ramp_mode    = ramp_mode,
+                                     acceleration = acceleration,
+                                     jerk_time    = jerk_time,
                                     )
         if blocking:
             self.wait_on_move()
@@ -227,13 +239,14 @@ class Interface(Model):
 def get_interface(motor_controller, 
                   axis, 
                   degrees_per_step,
-                  default_start_speed = None,
-                  default_speed       = None,
-                  default_ramp_mode   = None,
-                  default_jerk_time   = None,
-                  limit_sensor_true   = None,
-                  home_sensor_true    = None,
-                  slit_sensor_true    = None,
+                  default_start_speed  = None,
+                  default_speed        = None,
+                  default_ramp_mode    = None,
+                  default_acceleration = None,
+                  default_jerk_time    = None,
+                  limit_sensor_true    = None,
+                  home_sensor_true     = None,
+                  slit_sensor_true     = None,
                   ):
     axis = int(axis)
     degrees_per_step = float(degrees_per_step)
@@ -253,6 +266,11 @@ def get_interface(motor_controller,
     elif not default_ramp_mode in ['linear','limit jerk']:
         raise ValueError("'default_ramp_mode' must be either 'linear' or 'limit jerk'")
     
+    if default_acceleration is None:
+        default_acceleration = ACCELERATION_DEFAULT
+    else:
+        default_acceleration = float(default_acceleration)
+        
     if default_jerk_time is None:
         default_jerk_time = JERK_TIME_DEFAULT
     else:
@@ -273,17 +291,17 @@ def get_interface(motor_controller,
     else:
         slit_sensor_true = int(bool(int(slit_sensor_true)))
     
-    return Interface(motor_controller    = motor_controller,
-                     axis                = axis,
-                     degrees_per_step    = degrees_per_step,
-                     default_start_speed = default_start_speed,
-                     default_speed       = default_speed,
-                     default_ramp_mode   = default_ramp_mode,
+    return Interface(motor_controller     = motor_controller,
+                     axis                 = axis,
+                     degrees_per_step     = degrees_per_step,
+                     default_start_speed  = default_start_speed,
+                     default_speed        = default_speed,
+                     default_ramp_mode    = default_ramp_mode,
                      default_acceleration = default_acceleration,
-                     default_jerk_time   = default_jerk_time,
-                     limit_sensor_true   = limit_sensor_true,
-                     home_sensor_true    = home_sensor_true,
-                     slit_sensor_true    = slit_sensor_true,
+                     default_jerk_time    = default_jerk_time,
+                     limit_sensor_true    = limit_sensor_true,
+                     home_sensor_true     = home_sensor_true,
+                     slit_sensor_true     = slit_sensor_true,
                     )
     
 ###############################################################################

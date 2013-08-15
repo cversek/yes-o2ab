@@ -200,7 +200,7 @@ class Interface(Model):
                                      start_speed     = start_speed,
                                      operating_speed = operating_speed,
                                      ramp_mode    = ramp_mode,
-                                     acceleration = acceleration
+                                     acceleration = acceleration,
                                      jerk_time    = jerk_time,
                                     )
         if blocking:

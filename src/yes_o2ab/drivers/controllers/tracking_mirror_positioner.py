@@ -91,9 +91,11 @@ class Interface(Controller):
         #must do elevation first, so snorkel doesn't swing azimuth at wide angle
         #these actions should be blocking
         with el_motor.motor_controller._mutex:
+            el_motor.rotate(360)      #run into CW limit
             el_motor.seek_home("CW") 
-            el_motor.set_home()       #sets motor's ref. pos to zero
+            el_motor.set_home()        #sets motor's ref. pos to zero
         with az_motor.motor_controller._mutex:
+            az_motor.rotate(-360)      #run into CCW limit
             az_motor.seek_home("CCW")
             az_motor.set_home()       #sets motor's ref. pos to zero
         self.el_pos = self.el_home_pos     #convert to sky coordinates

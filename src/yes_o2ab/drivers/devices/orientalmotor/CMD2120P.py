@@ -72,10 +72,6 @@ class Interface(Model):
                                 sensor_mode,
                                 offset_angle    = 0,
                                 start_speed     = None,
-                                operating_speed = None,
-                                acceleration    = None,
-                                ramp_mode       = None,
-                                jerk_time       = None,
                                ):
         self._limit_sensor_config = {}
         #sensor mode configuration
@@ -88,19 +84,7 @@ class Interface(Model):
         self._limit_sensor_config['offset'] = offset
         if start_speed is None:
             start_speed = self.default_start_speed
-        if operating_speed is None:
-            operating_speed = self.default_speed
-        if acceleration is None:
-            acceleration = self.default_acceleration
-        if ramp_mode is None:
-            ramp_mode = self.default_ramp_mode
-        if jerk_time is None:
-            jerk_time = self.default_jerk_time
         self._limit_sensor_config['start_speed']     = start_speed
-        self._limit_sensor_config['operating_speed'] = operating_speed
-        self._limit_sensor_config['acceleration']    = acceleration
-        self._limit_sensor_config['ramp_mode']       = ramp_mode
-        self._limit_sensor_config['jerk_time']       = jerk_time
         
     def test(self):
         soft_rev     = self.motor_controller._exchange("? SOFT")

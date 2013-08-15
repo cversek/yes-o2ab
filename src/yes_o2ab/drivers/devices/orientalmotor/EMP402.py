@@ -58,7 +58,7 @@ class Interface(Model, SerialCommunicationsMixIn):
         if not m is None:
             return int(m.group(1))
         else:
-            raise IOError, "could not verify response"
+            IOError("could not verify response: \"%s\"" % resp)
             
     # Motor interface
     def get_limit_state(self, axis):
@@ -69,12 +69,12 @@ class Interface(Model, SerialCommunicationsMixIn):
         if not m is None:
             CW =  int(m.group(1))
         else:
-            raise IOError, "could not verify response"
+            IOError("could not verify response: \"%s\"" % resp)
         m = re.search(pattern2, resp)
         if not m is None:
             CCW = int(m.group(1))
         else:
-            raise IOError, "could not verify response"
+            raise IOError("could not verify response: \"%s\"" % resp)
         return (CW,CCW)
         
     def is_moving(self):
@@ -87,8 +87,14 @@ class Interface(Model, SerialCommunicationsMixIn):
             raise IOError("could not verify response: \"%s\"" % resp)
     
     def wait_on_move(self):
-        while self.is_moving():
-            pass
+        try:
+            while self.is_moving():
+                pass
+        except IOError, exc: #occurs when limit is hit while moving
+            #try to recover the command prompt
+            self._init_command_prompt()
+            if self.is_moving(): #still moving so re-raise the exception
+                raise exc
         return
             
     def set_home(self, axis):
@@ -111,9 +117,8 @@ class Interface(Model, SerialCommunicationsMixIn):
         self._send_command("VS%d %d" % (axis,start_speed))         #p. 85, start speed Hz 
         operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)
         self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz
-        if acceleration is None:
-            acceleration = self.default_acceleration
-        self._send_command("T%d %0.1f" % (axis,acceleration))      #p. 82, acceleration/deceleration
+        if not acceleration is None:
+            self._send_command("T%d %0.1f" % (axis,acceleration))      #p. 82, acceleration/deceleration
         if not ramp_mode is None:
             if ramp_mode == 'linear':
                 self._send_command("RAMP%d 0" % (axis,))        #p. 78, ramp mode
@@ -156,9 +161,8 @@ class Interface(Model, SerialCommunicationsMixIn):
         self._send_command("VS%d %d" % (axis,start_speed))      #p. 85, start speed Hz 
         operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)
         self._send_command("V%d %d" % (axis,operating_speed))   #p. 85, operating speed Hz
-        if acceleration is None:
-            acceleration = self.default_acceleration
-        self._send_command("T%d %0.1f" % (axis,acceleration))      #p. 82, acceleration/deceleration
+        if not acceleration is None:
+            self._send_command("T%d %0.1f" % (axis,acceleration))      #p. 82, acceleration/deceleration
         if not ramp_mode is None:
             if ramp_mode == 'linear':
                 self._send_command("RAMP%d 0" % (axis,))        #p. 78, ramp mode
@@ -180,12 +184,8 @@ class Interface(Model, SerialCommunicationsMixIn):
                   axis,
                   sensor_mode,
                   direction,
-                  offset,
                   start_speed,
-                  operating_speed,
-                  acceleration = None,
-                  ramp_mode    = None,
-                  jerk_time    = None,
+                  offset      = None,
                  ):
         #sensor mode configuration
         if sensor_mode == 2:
@@ -195,31 +195,16 @@ class Interface(Model, SerialCommunicationsMixIn):
         #ignore both TIM and SLIT inputs
         self._send_command("TIM%d 0,0" % (axis,))                  #p. 82, subsensor config
         #motion configuration
-        self._send_command("OFS%d %d" % (axis,offset))             #p. 76, number of offset steps
+        if not offset is None:
+            self._send_command("OFS%d %d" % (axis,offset))             #p. 76, number of offset steps
         if   direction == "CW":
             self._send_command("H%d +" % (axis,))                  #p. 70, set direction flag
         elif direction == "CCW":
             self._send_command("H%d -" % (axis,))
         self._send_command("PULSE%d 1" % (axis,))                  #p. 77, set pulse output mode to "1-pulse mode"
         start_speed = constrain(start_speed, SPEED_MIN, SPEED_MAX)
-        #configure speed ramping
+        #motion will be in constant speed mode at start_speed
         self._send_command("VS%d %d" % (axis,start_speed))         #p. 85, start speed Hz 
-        operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)
-        self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz
-        if acceleration is None:
-            acceleration = self.default_acceleration
-        self._send_command("T%d %0.1f" % (axis,acceleration))      #p. 82, acceleration/deceleration
-        if not ramp_mode is None:
-            if ramp_mode == 'linear':
-                self._send_command("RAMP%d 0" % (axis,))        #p. 78, ramp mode
-            elif ramp_mode == 'limit jerk':
-                if not jerk_time is None:
-                    jerk_time = float(jerk_time)
-                    self._send_command("RAMP%d 1, %0.1f" % (axis,jerk_time)) #p. 78, ramp mode
-                else:
-                    self._send_command("RAMP%d 1" % (axis,))    #p. 78, ramp mode
-            else:
-                raise ValueError("'ramp_mode' must be either 'linear' or 'limit jerk', got %s" % ramp_mode)
         #start the mechanical home seeking
         self._send_command("MHOME%d" % axis)
     

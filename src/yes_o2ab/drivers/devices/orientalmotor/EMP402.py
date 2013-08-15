@@ -270,7 +270,7 @@ class Interface(Model, SerialCommunicationsMixIn):
         self.ser.flushInput()  #ignore crap in the buffer
         #self._init_command_prompt()
         self._send_command(cmd)
-        time.sleep(0.5)
+        #time.sleep(0.5)
         success, buff = self._read_until_prompt()
         print "!!! RESP:", success,buff
         if not success:

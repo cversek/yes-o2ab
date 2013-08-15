@@ -11,8 +11,9 @@ from automat.core.hwcontrol.devices.instruments import Model
 SPEED_MIN       = 10 #Hz
 SPEED_MAX       = 200000 #Hz
 SPEED_DEFAULT   = SPEED_MIN
-RAMP_MODE_DEFAULT  = 'linear'
-JERK_TIME_DEFAULT  = 50
+RAMP_MODE_DEFAULT    = 'linear'
+ACCELERATION_DEFAULT = 30 #ms/kHz
+JERK_TIME_DEFAULT    = 50 #ms
 STEPS_MAX          = 16777215
 STEPS_MIN          = -STEPS_MAX
 STEPS_DEFAULT      = 1
@@ -255,7 +256,7 @@ def get_interface(motor_controller,
     if default_jerk_time is None:
         default_jerk_time = JERK_TIME_DEFAULT
     else:
-        default_jerk_time = int(default_jerk_time)
+        default_jerk_time = float(default_jerk_time)
     
     if limit_sensor_true is None:
         limit_sensor_true = LIMIT_SENSOR_TRUE_DEFAULT
@@ -278,6 +279,7 @@ def get_interface(motor_controller,
                      default_start_speed = default_start_speed,
                      default_speed       = default_speed,
                      default_ramp_mode   = default_ramp_mode,
+                     default_acceleration = default_acceleration,
                      default_jerk_time   = default_jerk_time,
                      limit_sensor_true   = limit_sensor_true,
                      home_sensor_true    = home_sensor_true,

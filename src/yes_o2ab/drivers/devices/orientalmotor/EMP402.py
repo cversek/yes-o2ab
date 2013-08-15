@@ -101,20 +101,25 @@ class Interface(Model, SerialCommunicationsMixIn):
                       direction = 'CW',
                       start_speed     = SPEED_DEFAULT,
                       operating_speed = SPEED_DEFAULT,
+                      ramp_mode = None,
+                      jerk_time = None,
                      ):
         self._send_command("PULSE%d 1" % axis)                     #p. 77, set pulse output mode to "1-pulse mode"
-        start_speed = constrain(start_speed, SPEED_MIN, SPEED_MAX)         
-        self._send_command("VS%d %d" % (axis,start_speed))         #p. 85, start speed Hz 
-        operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)         
-        self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz    
+        start_speed = constrain(start_speed, SPEED_MIN, SPEED_MAX)
         #configure speed ramping
+        self._send_command("VS%d %d" % (axis,start_speed))         #p. 85, start speed Hz 
+        operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)
+        self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz
         if not ramp_mode is None:
             if ramp_mode == 'linear':
                 self._send_command("RAMP%d 0" % (axis,))        #p. 78, ramp mode
+                if acceleration is None:
+                    acceleration = self.default_acceleration
+                self._send_command("T%d %0.1f" % (axis,acceleration)) #p. 82, acceleration/deceleration
             elif ramp_mode == 'limit jerk':
                 if not jerk_time is None:
-                    jerk_time = int(jerk_time)
-                    self._send_command("RAMP%d 1, %d" % (axis,jerk_time)) #p. 78, ramp mode
+                    jerk_time = float(jerk_time)
+                    self._send_command("RAMP%d 1, %0.1f" % (axis,jerk_time)) #p. 78, ramp mode
                 else:
                     self._send_command("RAMP%d 1" % (axis,))    #p. 78, ramp mode
             else:
@@ -140,26 +145,31 @@ class Interface(Model, SerialCommunicationsMixIn):
                steps           = STEPS_DEFAULT, 
                start_speed     = SPEED_DEFAULT,
                operating_speed = SPEED_DEFAULT,
-               ramp_mode = None,
-               jerk_time = None,
+               ramp_mode    = None,
+               acceleration = None,
+               jerk_time    = None,
               ):
         self._send_command("PULSE%d 1" % (axis,))               #p. 77, set pulse output mode to "1-pulse mode"
         start_speed = constrain(start_speed, SPEED_MIN, SPEED_MAX)
+        #configure speed ramping
         self._send_command("VS%d %d" % (axis,start_speed))      #p. 85, start speed Hz 
         operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)
         self._send_command("V%d %d" % (axis,operating_speed))   #p. 85, operating speed Hz
-        #configure speed ramping
         if not ramp_mode is None:
             if ramp_mode == 'linear':
                 self._send_command("RAMP%d 0" % (axis,))        #p. 78, ramp mode
+                if acceleration is None:
+                    acceleration = self.default_acceleration
+                self._send_command("T%d %0.1f" % (axis,acceleration)) #p. 82, acceleration/deceleration
             elif ramp_mode == 'limit jerk':
                 if not jerk_time is None:
-                    jerk_time = int(jerk_time)
-                    self._send_command("RAMP%d 1, %d" % (axis,jerk_time)) #p. 78, ramp mode
+                    jerk_time = float(jerk_time)
+                    self._send_command("RAMP%d 1, %0.1f" % (axis,jerk_time)) #p. 78, ramp mode
                 else:
                     self._send_command("RAMP%d 1" % (axis,))    #p. 78, ramp mode
             else:
                 raise ValueError("'ramp_mode' must be either 'linear' or 'limit jerk', got %s" % ramp_mode)
+        #configure direction
         self._send_command("H%d +" % (axis,))                   #p. 70, set direction flag
         self._send_command("D%d %d" % (axis, steps))            #p. 64, steps to rotate
         #start the motion, incremental
@@ -189,18 +199,21 @@ class Interface(Model, SerialCommunicationsMixIn):
         elif direction == "CCW":
             self._send_command("H%d -" % (axis,))
         self._send_command("PULSE%d 1" % (axis,))                  #p. 77, set pulse output mode to "1-pulse mode"
-        start_speed = constrain(start_speed, SPEED_MIN, SPEED_MAX)         
-        self._send_command("VS%d %d" % (axis,start_speed))         #p. 85, start speed Hz 
-        operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)         
-        self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz
+        start_speed = constrain(start_speed, SPEED_MIN, SPEED_MAX)
         #configure speed ramping
+        self._send_command("VS%d %d" % (axis,start_speed))         #p. 85, start speed Hz 
+        operating_speed = constrain(operating_speed, SPEED_MIN, SPEED_MAX)
+        self._send_command("V%d %d" % (axis,operating_speed))      #p. 85, operating speed Hz
         if not ramp_mode is None:
             if ramp_mode == 'linear':
                 self._send_command("RAMP%d 0" % (axis,))        #p. 78, ramp mode
+                if acceleration is None:
+                    acceleration = self.default_acceleration
+                self._send_command("T%d %0.1f" % (axis,acceleration)) #p. 82, acceleration/deceleration
             elif ramp_mode == 'limit jerk':
                 if not jerk_time is None:
-                    jerk_time = int(jerk_time)
-                    self._send_command("RAMP%d 1, %d" % (axis,jerk_time)) #p. 78, ramp mode
+                    jerk_time = float(jerk_time)
+                    self._send_command("RAMP%d 1, %0.1f" % (axis,jerk_time)) #p. 78, ramp mode
                 else:
                     self._send_command("RAMP%d 1" % (axis,))    #p. 78, ramp mode
             else:

@@ -113,7 +113,11 @@ class Interface(Model, SerialCommunicationsMixIn):
             self._send_command("H%d -" % axis)                     #p. 70, set direction flag
         else:
             raise ValueError("Invalid direction '%s', must be 'CW' or 'CCW'" % direction)
-        self._send_command("D%d %d" % (axis, pos))                 #p. 64, steps to rotate
+        pos_sign = '+'
+        if pos < 0:
+            pos_sign = '-'
+            pos = abs(pos)
+        self._send_command("D%d %s%d" % (axis, pos_sign, pos))                 #p. 64, steps to rotate
         #start the motion, absolute
         self._send_command("ABS%d" % axis)
                 

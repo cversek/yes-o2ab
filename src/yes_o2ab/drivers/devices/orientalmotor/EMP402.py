@@ -246,7 +246,7 @@ class Interface(Model, SerialCommunicationsMixIn):
             raise IOError("could not initialize command prompt of %s in %d attempts" % (self.identify(),attempts))
     
     def _send_command(self, cmd):
-        print "!!! SEND COMMAND:", cmd
+        #print "!!! SEND COMMAND:", cmd
         self._send(cmd)
         self.ser.flushOutput()
         
@@ -257,7 +257,7 @@ class Interface(Model, SerialCommunicationsMixIn):
         self._send_command(cmd)
         #time.sleep(0.5)
         success, buff = self._read_until_prompt()
-        print "!!! RESP:", success,buff
+        #print "!!! RESP:", success,buff
         if not success:
             raise IOError, "could not verify command: %s" % cmd
         return "".join(buff)
@@ -283,10 +283,10 @@ class Interface(Model, SerialCommunicationsMixIn):
         #self._init_command_prompt()
         self._send_command("RESET\r\n")
         time.sleep(RESET_SLEEP_TIME)
-        #self.ser.flushInput()  #ignore crap in the buffer
-        #self.ser.flushOutput()  #ignore crap in the buffer
+        self.ser.flushInput()  #ignore crap in the buffer
+        self.ser.flushOutput()  #ignore crap in the buffer
         #print "!!! AFTER RESET"
-        #self._init_command_prompt()
+        self._init_command_prompt()
 
     #--------------------------------------------------------------------------
       

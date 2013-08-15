@@ -270,7 +270,7 @@ class Interface(Model, SerialCommunicationsMixIn):
         self._send_command(cmd)
         time.sleep(0.5)
         success, buff = self._read_until_prompt()
-        #print "!!! RESP:", success,buff
+        print "!!! RESP:", success,buff
         if not success:
             raise IOError, "could not verify command: %s" % cmd
         return "".join(buff)

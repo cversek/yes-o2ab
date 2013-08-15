@@ -84,7 +84,7 @@ class Interface(Model, SerialCommunicationsMixIn):
         if not m is None:
             return bool(int(m.group(1)))
         else:
-            raise IOError, "could not verify response"
+            raise IOError("could not verify response: \"%s\"" % resp)
     
     def wait_on_move(self):
         while self.is_moving():

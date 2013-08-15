@@ -35,7 +35,7 @@ from ..common_defs import FRAMETYPE_DEFAULT, EXPOSURE_TIME_DEFAULT,\
     RBI_NUM_FLUSHES_DEFAULT, RBI_EXPOSURE_TIME_DEFAULT, REPEAT_DELAY_DEFAULT,\
     FIELD_LABEL_FONT, HEADING_LABEL_FONT, SUBHEADING_LABEL_FONT
 
-WINDOW_TITLE      = "YES O2AB Calibrate"
+WINDOW_TITLE      = "YES O2AB Control"
 WAIT_DELAY        = 100 #milliseconds
 TEXT_BUFFER_SIZE  = 10*2**20 #ten megabytes
 SPECTRAL_FIGSIZE  = (6,5) #inches
@@ -44,7 +44,7 @@ SPECTRUM_BACKGROUND_PLOT_STYLE = 'b-'
 MAX_IMAGESIZE     = (600,500)
 TEMPERATURE_FIGSIZE  = (6,5) #inches
 LOOP_DELAY        = 100 #milliseconds
-CONDITIONS_BACKUP_FILENAME = os.path.expanduser("~/.yes_o2ab_calibrate_conditions.csv")
+CONDITIONS_BACKUP_FILENAME = os.path.expanduser("~/.yes_o2ab_control_conditions.csv")
 
 FINE_ADJUST_STEP_SIZE_DEFAULT = 10 #steps
 
@@ -57,7 +57,7 @@ SECTION_PADY = 2
 CONFIRMATION_TEXT_DISPLAY_TEXT_HEIGHT = 40
 CONFIRMATION_TEXT_DISPLAY_TEXT_WIDTH  = 80
 
-SETTINGS_FILEPATH = os.path.expanduser("~/.yes_o2ab_calibrate_settings.db")
+SETTINGS_FILEPATH = os.path.expanduser("~/.yes_o2ab_control_settings.db")
 
 #_empty_regex = re.compile('^$')
 #_positive_integer_regex = re.compile('^0|([1-9]\d*)$')

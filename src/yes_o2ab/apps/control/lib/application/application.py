@@ -22,7 +22,7 @@ from   errors import ConfigurationError, DeviceError
 #Module Constants
 INTRO_MSG_TEMPLATE = """
 *******************************************************************************
-YES O2AB Calibrate %(version)s
+YES O2AB Control %(version)s
     authors: Craig Versek (cwv@yesinc.com)
 *******************************************************************************
 """

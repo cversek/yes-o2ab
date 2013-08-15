@@ -238,7 +238,7 @@ class Interface(Model, SerialCommunicationsMixIn):
             #check for syntax error
             m = SYNTAX_ERROR_REGEX.match(line)
             if not m is None:
-                raise ValueError, "bad command syntax:", line
+                raise ValueError, "bad command syntax: %s" % line
  
     def _reset(self):
         #print "!!! BEFORE RESET"

@@ -1029,13 +1029,13 @@ class GUI:
                 return
             elif mode == 'store_az':
                 az_store = tracking_mirror_positioner.configuration['az_store']
-                solar_tracker.goto_coords(az_target = az_target,
+                solar_tracker.goto_coords(az_target = az_store,
                                           blocking = False)
                 self._wait_on_tracking_goto_loop(mode = 'store_el')
                 return
             elif mode == 'store_el':
                 el_store = tracking_mirror_positioner.configuration['el_store']
-                solar_tracker.goto_coords(el_target = el_target,
+                solar_tracker.goto_coords(el_target = el_store,
                                           blocking = False)
                 self._wait_on_tracking_goto_loop(mode = 'store_end')
                 return

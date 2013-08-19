@@ -496,9 +496,7 @@ class GUI:
         self.focus_adjustL_button.configure(state="normal")
         self.focus_adjustR_button.configure(state="normal")
         self.tracking_seek_home_button.config(state='normal')
-        print "!!! Here 1"
         if self._tracking_initialized:
-            print "!!! Here 2"
             self.tracking_goto_store_button.config(state='normal')
             self.tracking_goto_zenith_button.config(state='normal')
             self.tracking_goto_sun_button.config(state='normal')
@@ -728,7 +726,7 @@ class GUI:
                 self.app.print_comment("Defaulting band selection.")
                 new_band = default_band
             elif choice == 'Cancel':
-                self.app.print_comment("Forcing through '(unknown)' band state.")  
+                self.app.print_comment("Forcing through '(unknown)' band state.")
         #this is a conflict
         elif (new_band == '(unknown)') or (new_band == 'O2A' and B == 2) or (new_band == 'H2O' and B == 1):      #conflict
             if new_band == '(unknown)':
@@ -909,8 +907,25 @@ class GUI:
         if mode == 'home':
             self._tracking_busy()
             if not solar_tracker.is_initialized:
-                solar_tracker.initialize()
-            solar_tracker.seek_home() #this blocks
+                msg = "Warning: Check that the Weather Cover is open before proceeding.\nOtherwise, instrument may be damaged."
+                dlg = Pmw.MessageDialog(parent = self.win,
+                                        message_text = msg,
+                                        buttons = ('Proceed', 'Cancel'),
+                                        defaultbutton = 'Cancel',
+                                        iconpos = 'n',
+                                        icon_bitmap = 'warning',
+                                        title = "Initialize Tracking Controls",
+                                        )
+                choice = dlg.activate()
+                dlg.deactivate()
+                if choice == 'Proceed':
+                    self.app.print_comment("Initializing the tracking controls")
+                    solar_tracker.initialize()
+                    self._tracking_initialized = True
+                elif choice == 'Cancel':
+                    self.app.print_comment("Cancelling the track control initialization.")
+            else:
+                solar_tracker.seek_home() #this blocks
             self._wait_on_tracking_goto_loop(mode)
             return
         elif mode == 'zenith':
@@ -999,7 +1014,6 @@ class GUI:
             self.tracking_fields['elevation'].configure(entry_fg = "black")
             self.end_busy_dialog()
             if mode == 'home':
-                self._tracking_initialized = True
                 return
             elif mode == 'zenith' or mode == "coords":
                 if self._capture_mode == "on_adjust":

@@ -16,6 +16,7 @@ from ..common_defs import FIELD_LABEL_FONT
 FIELD_ENTRY_WIDTH = 9
 DEFAULT_SECONDS_AHEAD = 60
 ###############################################################################
+        
 class TrackingGotoSunDialog(Dialog):
     def __init__(self,
                  parent              = None,

@@ -251,6 +251,7 @@ class GUI:
         #-----------------------------------------------------------------------
         #tracking controls
         self._tracking_initialized = False
+        self._tracking_mode = None
         tk.Label(left_panel, pady = SECTION_PADY).pack(side='top',fill='x', anchor="nw")
         tk.Label(left_panel, text="Tracking Controls:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
         TRACKING_FIELDS_ENTRY_WIDTH = 9
@@ -920,13 +921,23 @@ class GUI:
                 dlg.deactivate()
                 if choice == 'Proceed':
                     self.app.print_comment("Initializing the tracking controls")
-                    solar_tracker.initialize()
+                    solar_tracker.initialize() #this blocks
                     self._tracking_initialized = True
+                    self._wait_on_tracking_goto_loop(mode)
+                    return
                 elif choice == 'Cancel':
                     self.app.print_comment("Cancelling the track control initialization.")
+                    self._wait_on_tracking_goto_loop(mode)
+                    return
             else:
                 solar_tracker.seek_home() #this blocks
-            self._wait_on_tracking_goto_loop(mode)
+                self._wait_on_tracking_goto_loop(mode)
+                return
+        elif mode == 'store':
+            self._tracking_busy()
+            #go to zenith first, so az swing isn't wide
+            solar_tracker.goto_zenith(blocking = False)
+            self._wait_on_tracking_goto_loop(mode='store_az')
             return
         elif mode == 'zenith':
             self._tracking_busy()
@@ -993,6 +1004,7 @@ class GUI:
         
     def _wait_on_tracking_goto_loop(self, mode):
         #check the controller states
+        solar_tracker = self.app.load_controller('solar_tracker')
         tracking_mirror_positioner  = self.app.load_controller('tracking_mirror_positioner')
         #read out all pending events
         while not tracking_mirror_positioner.event_queue.empty():
@@ -1012,10 +1024,26 @@ class GUI:
             self._update_tracking_fields(md)
             self.tracking_fields['azimuth'].configure(entry_fg = "black")
             self.tracking_fields['elevation'].configure(entry_fg = "black")
-            self.end_busy_dialog()
             if mode == 'home':
+                self.end_busy_dialog()
                 return
+            elif mode == 'store_az':
+                az_store = tracking_mirror_positioner.configuration['az_store']
+                solar_tracker.goto_coords(az_target = az_target,
+                                          blocking = False)
+                self._wait_on_tracking_goto_loop(mode = 'store_el')
+                return
+            elif mode == 'store_el':
+                el_store = tracking_mirror_positioner.configuration['el_store']
+                solar_tracker.goto_coords(el_target = el_target,
+                                          blocking = False)
+                self._wait_on_tracking_goto_loop(mode = 'store_end')
+                return
+            elif mode == 'store_end':
+                self.end_busy_dialog()
+                return 
             elif mode == 'zenith' or mode == "coords":
+                self.end_busy_dialog()
                 if self._capture_mode == "on_adjust":
                     #check to see if a capture is already running
                     image_capture = self.app.load_controller('image_capture')
@@ -1023,6 +1051,7 @@ class GUI:
                         self.capture_once()
                     return
             elif mode == 'sun':
+                self.end_busy_dialog()
                 cap = self.tracking_goto_sun_dialog.delay_then_capture_variable.get()
                 if cap:
                     dt = time.time() - self._tracking_start_time

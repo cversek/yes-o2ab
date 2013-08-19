@@ -496,7 +496,9 @@ class GUI:
         self.focus_adjustL_button.configure(state="normal")
         self.focus_adjustR_button.configure(state="normal")
         self.tracking_seek_home_button.config(state='normal')
+        print "!!! Here 1"
         if self._tracking_initialized:
+            print "!!! Here 2"
             self.tracking_goto_store_button.config(state='normal')
             self.tracking_goto_zenith_button.config(state='normal')
             self.tracking_goto_sun_button.config(state='normal')
@@ -905,9 +907,9 @@ class GUI:
         solar_tracker = self.app.load_controller('solar_tracker')
         #start the movement
         if mode == 'home':
+            self._tracking_busy()
             if not solar_tracker.is_initialized:
                 solar_tracker.initialize()
-            self._tracking_busy()
             solar_tracker.seek_home() #this blocks
             self._wait_on_tracking_goto_loop(mode)
             return

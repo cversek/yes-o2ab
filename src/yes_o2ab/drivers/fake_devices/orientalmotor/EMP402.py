@@ -8,6 +8,7 @@ from automat.core.hwcontrol.devices.instruments import Model
 
 #mixin interfaces
 from automat.core.hwcontrol.communication.serial_mixin import SerialCommunicationsMixIn
+from automat.core.hwcontrol.communication.serial_mixin import Error as SerialMixinError
 
 PROMPT_REGEX       = re.compile("0[>]\s*$")
 SYNTAX_ERROR_REGEX = re.compile(r"\s+[*]\s+Syntax\s+error[.]\s+$") 
@@ -32,8 +33,10 @@ def constrain(val, min_val, max_val):
 ###############################################################################
 class Interface(Model, SerialCommunicationsMixIn):
     def __init__(self, port):
-        pass
-        #SerialCommunicationsMixIn.__init__(self, port, delay = DELAY)
+        try:
+            SerialCommunicationsMixIn.__init__(self, port, delay = DELAY)
+        except SerialMixinError: #will be throw if serial port doesn't exist
+            pass
 #    def __del__(self):
 #        self.shutdown()
     #--------------------------------------------------------------------------

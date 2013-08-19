@@ -250,6 +250,7 @@ class GUI:
         self.focus_adjust_position_field.pack(side='top', anchor="w", expand='no')
         #-----------------------------------------------------------------------
         #tracking controls
+        self._tracking_initialized = False
         tk.Label(left_panel, pady = SECTION_PADY).pack(side='top',fill='x', anchor="nw")
         tk.Label(left_panel, text="Tracking Controls:", font = HEADING_LABEL_FONT).pack(side='top',anchor="w")
         TRACKING_FIELDS_ENTRY_WIDTH = 9
@@ -272,13 +273,39 @@ class GUI:
         for key, widget in self.tracking_fields.items():
             widget.pack(side='top', anchor="w", expand='no')
         
-        self.tracking_seek_home_button = tk.Button(left_panel,text='Seek Home',command = lambda: self.tracking_goto('home'), width = BUTTON_WIDTH)
+        self.tracking_seek_home_button = tk.Button(left_panel,
+                                                   text='Seek Home',
+                                                   command = lambda: self.tracking_goto('home'), 
+                                                   width = BUTTON_WIDTH,
+                                                   )
         self.tracking_seek_home_button.pack(side='top', anchor="nw")
-        self.tracking_goto_zenith_button = tk.Button(left_panel,text='Go to Zenith',command = lambda: self.tracking_goto('zenith'), width = BUTTON_WIDTH)
+        self.tracking_goto_store_button = tk.Button(left_panel,
+                                                    text='Go to Store Pos.',
+                                                    command = lambda: self.tracking_goto('store'), 
+                                                    width = BUTTON_WIDTH,
+                                                    state='disabled',
+                                                    )
+        self.tracking_goto_store_button.pack(side='top', anchor="nw")
+        self.tracking_goto_zenith_button = tk.Button(left_panel,
+                                                     text='Go to Zenith',
+                                                     command = lambda: self.tracking_goto('zenith'),
+                                                     width = BUTTON_WIDTH,
+                                                     state='disabled',
+                                                     )
         self.tracking_goto_zenith_button.pack(side='top', anchor="nw")
-        self.tracking_goto_sun_button = tk.Button(left_panel,text='Go to Sun',command = lambda: self.tracking_goto('sun'), width = BUTTON_WIDTH)
+        self.tracking_goto_sun_button = tk.Button(left_panel,
+                                                  text='Go to Sun',
+                                                  command = lambda: self.tracking_goto('sun'), 
+                                                  width = BUTTON_WIDTH,
+                                                  state='disabled',
+                                                  )
         self.tracking_goto_sun_button.pack(side='top', anchor="nw")
-        self.tracking_goto_coords_button = tk.Button(left_panel,text='Go to Coords',command = lambda: self.tracking_goto('coords'), width = BUTTON_WIDTH)
+        self.tracking_goto_coords_button = tk.Button(left_panel,
+                                                     text='Go to Coords',
+                                                     command = lambda: self.tracking_goto('coords'),
+                                                     width = BUTTON_WIDTH,
+                                                     state='disabled',
+                                                     )
         self.tracking_goto_coords_button.pack(side='top', anchor="nw")
         #build the tracking dialogs
         self.tracking_goto_sun_dialog = TrackingGotoSunDialog(self.win)
@@ -450,6 +477,7 @@ class GUI:
         self.focus_adjustL_button.configure(state="disabled")
         self.focus_adjustR_button.configure(state="disabled")
         self.tracking_seek_home_button.config(state='disabled')
+        self.tracking_goto_store_button.config(state='disabled')
         self.tracking_goto_zenith_button.config(state='disabled')
         self.tracking_goto_sun_button.config(state='disabled')
         self.tracking_goto_coords_button.config(state='disabled')
@@ -468,9 +496,11 @@ class GUI:
         self.focus_adjustL_button.configure(state="normal")
         self.focus_adjustR_button.configure(state="normal")
         self.tracking_seek_home_button.config(state='normal')
-        self.tracking_goto_zenith_button.config(state='normal')
-        self.tracking_goto_sun_button.config(state='normal')
-        self.tracking_goto_coords_button.config(state='normal')
+        if self._tracking_initialized:
+            self.tracking_goto_store_button.config(state='normal')
+            self.tracking_goto_zenith_button.config(state='normal')
+            self.tracking_goto_sun_button.config(state='normal')
+            self.tracking_goto_coords_button.config(state='normal')
 
     def change_capture_settings(self):
         choice = self.capture_settings_dialog.activate()
@@ -875,6 +905,8 @@ class GUI:
         solar_tracker = self.app.load_controller('solar_tracker')
         #start the movement
         if mode == 'home':
+            if not solar_tracker.is_initialized:
+                solar_tracker.initialize()
             self._tracking_busy()
             solar_tracker.seek_home() #this blocks
             self._wait_on_tracking_goto_loop(mode)
@@ -965,6 +997,7 @@ class GUI:
             self.tracking_fields['elevation'].configure(entry_fg = "black")
             self.end_busy_dialog()
             if mode == 'home':
+                self._tracking_initialized = True
                 return
             elif mode == 'zenith' or mode == "coords":
                 if self._capture_mode == "on_adjust":

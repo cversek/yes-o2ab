@@ -56,7 +56,7 @@ class Application:
                         'filter_switcher', 
                         'band_adjuster',  #FIXME can't be initialized with known state!
                         'focus_adjuster',
-                        'solar_tracker',
+                        #'solar_tracker', Can not run init during program start, since weather cover must be checked
                        ]
     def __init__(self, 
                  intro_msg       = None, 

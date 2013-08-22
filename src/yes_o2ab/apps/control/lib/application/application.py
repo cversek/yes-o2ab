@@ -51,7 +51,7 @@ def stream_print(text,
 class Application:
     USED_CONTROLLERS = [
                         'image_capture',
-                        'condition_monitor',
+                        #'condition_monitor',
                         'band_switcher',
                         'filter_switcher', 
                         'band_adjuster',  #FIXME can't be initialized with known state!

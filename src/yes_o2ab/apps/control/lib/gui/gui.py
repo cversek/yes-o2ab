@@ -1345,6 +1345,7 @@ class GUI:
         self.focus_adjust_position_field.setvalue(str(focuser_pos))
         
     def condition_monitor_mode_toggle(self):
+        condition_monitor = self.app.load_controller('condition_monitor')
         #cancel the next scheduled loop
         if not self._condition_monitor_after_id is None:
             self.win.after_cancel(self._condition_monitor_after_id)
@@ -1353,12 +1354,15 @@ class GUI:
             self.condition_monitor_button.config(bg='light gray', relief="raised")
             self.monitor_interval_field.component('entry').config(state='normal')
             self._condition_monitor_mode = False
-            self.app.print_comment("Stopping Condition Monitoring.")
+            self.app.print_comment("Shutting down Condition Monitoring.")
+            condition_monitor.shutdown()
+            
         else:                             #is off, turn on
             self.condition_monitor_button.config(bg='green', relief="sunken")
             self.monitor_interval_field.component('entry').config(state='readonly') #dissalow entries
             self._condition_monitor_mode = True
-            self.app.print_comment("Starting Condition Monitoring.")
+            self.app.print_comment("Initializing Condition Monitoring.")
+            condition_monitor.initialize()
             self._update_conditions_fields_loop()
     
     def _update_conditions_fields_loop(self):

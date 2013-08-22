@@ -53,7 +53,10 @@ class FLIDevice(Model):
             idn = self.identify()
         except Exception, exc:
             return (False, exc)
-        return (True, idn) 
+        return (True, idn)
+        
+    def shutdown(self):
+        pass
         
     #--------------------------------------------------------------------------
       

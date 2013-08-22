@@ -15,7 +15,7 @@ class Interface(Model):
     def __init__(self, serial_number):
         self._phidget = InterfaceKit()
         self._serial_number = serial_number
-    def initialize(self)
+    def initialize(self):
         self._phidget.openPhidget(serial = self._serial_number)
         self._phidget.waitForAttach(ATTACH_TIMEOUT)
         self._phidget.setRatiometric(False) #note the default is True!

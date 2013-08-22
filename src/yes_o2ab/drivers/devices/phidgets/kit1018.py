@@ -15,19 +15,23 @@ class Interface(Model):
     def __init__(self, serial_number):
         self._phidget = InterfaceKit()
         self._serial_number = serial_number
+    
     def initialize(self):
         self._phidget.openPhidget(serial = self._serial_number)
         self._phidget.waitForAttach(ATTACH_TIMEOUT)
         self._phidget.setRatiometric(False) #note the default is True!
+    
     def identify(self):
         name = self._phidget.getDeviceName()
         serial_number = self._phidget.getSerialNum()
         return "%s, Serial Number: %d" % (name, serial_number)
+    
     def read_sensor(self, index):
         """ reads the raw value from the sensor at 'index' 
             returns integer in range [0,4095]
         """
         return self._phidget.getSensorRawValue(index)
+    
     def read_all_sensors(self):
         """ reads all the sensors raw values, indices 0-7
             returns list of 8 integers in range [0,4095]
@@ -36,15 +40,19 @@ class Interface(Model):
         for i in range(8):
             values.append(self.read_sensor(i))
         return values    
+    
     def read_digital_input(self,index):
         """ reads the digital input at 'index' 
             returns True if grounded, False if open (pulled-up to 5V)
         """
         return self._phidget.getInputState(index)
+    
     def write_digital_output(self,index,state):
         return self._phidget.setOutputState(index,state)    
+    
     def shutdown(self):       
         self._phidget.closePhidget()
+    
     def __del__(self):
         self.shutdown()
       

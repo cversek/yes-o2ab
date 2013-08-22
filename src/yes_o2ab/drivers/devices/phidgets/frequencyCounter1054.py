@@ -14,7 +14,10 @@ ATTACH_TIMEOUT = 10000 #milliseconds
 class Interface(Model):
     def __init__(self, serial_number):
         self._phidget = FrequencyCounter()
-        self._phidget.openPhidget(serial=serial_number)
+        self._serial_number = serial_number
+        
+    def initialize(self):
+        self._phidget.openPhidget(serial = self._serial_number)
         self._phidget.waitForAttach(ATTACH_TIMEOUT)
         
     def identify(self):

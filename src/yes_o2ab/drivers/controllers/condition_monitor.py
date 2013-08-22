@@ -36,7 +36,8 @@ class Interface(Controller):
             try:
                 sample = OrderedDict()
                 devices = self.devices.copy() #do not accidently edit in place!
-                camera = devices.pop('camera')
+                camera           = devices.pop('camera')
+                focuser          = devices.pop('focuser')
                 sensor_SA_press  = devices.pop('sensor_SA_press')
                 sensor_SA_temp   = devices.pop('sensor_SA_temp')
                 sensor_SA_humid  = devices.pop('sensor_SA_humid')
@@ -46,6 +47,8 @@ class Interface(Controller):
                     sample['CC_temp']  = camera.get_CC_temp()
                     sample['CH_temp']  = camera.get_CH_temp()
                     sample['CC_power'] = camera.get_CC_power()
+                with focuser._mutex:
+                    sample['FI_temp']  = focuser.get_temperature()
                 #read DAQ boards with mutex to avoid inter-thread/process collisions
                 with sensor_SA_press.daq._mutex: 
                     sample['SA_press'] = sensor_SA_press.read()

@@ -49,6 +49,13 @@ class ConditionFields(Frame):
                                                  entry_width = CONDITION_FIELDS_ENTRY_WIDTH,
                                                  entry_state = 'readonly',
                                                  )
+        self.fields['FI_temp']  = Pmw.EntryField(parent,
+                                                 labelpos    = 'w',
+                                                 label_text  = "        Focuser Internal (FI) Temp.:",
+                                                 label_font  = FIELD_LABEL_FONT,
+                                                 entry_width = CONDITION_FIELDS_ENTRY_WIDTH,
+                                                 entry_state = 'readonly',
+                                                 )
         self.fields['SA_press'] = Pmw.EntryField(parent,
                                                  labelpos    = 'w',
                                                  label_text  = "      Spect. Air (SA) Press. [inHg]:",
@@ -70,9 +77,9 @@ class ConditionFields(Frame):
                                                  entry_width = CONDITION_FIELDS_ENTRY_WIDTH,
                                                  entry_state = 'readonly',
                                                  )
-        self.fields['FW_temp']  = Pmw.EntryField(parent,
+        self.fields['TT_temp']  = Pmw.EntryField(parent,
                                                  labelpos    = 'w',
-                                                 label_text  = "            Filter Wheel (FW) Temp.:",
+                                                 label_text  = "               Tower Top (TT) Temp.:",
                                                  label_font  = FIELD_LABEL_FONT,
                                                  entry_width = CONDITION_FIELDS_ENTRY_WIDTH,
                                                  entry_state = 'readonly',

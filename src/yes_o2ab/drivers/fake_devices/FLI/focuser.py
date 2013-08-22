@@ -33,7 +33,12 @@ class Interface(FLIDevice):
 
     def step(self, steps, blocking = True):
         self.initialize()
+    
+    def get_steps_remaining(self):
+        return 0
         
+    def get_temperature(self):
+        return 25.0
     #--------------------------------------------------------------------------
       
 

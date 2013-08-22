@@ -15,26 +15,37 @@ class Interface(Model):
     def __init__(self, serial_number):
         self._phidget = FrequencyCounter()
         self._serial_number = serial_number
+        self._is_initialized = False
         
     def initialize(self):
-        self._phidget.openPhidget(serial = self._serial_number)
-        self._phidget.waitForAttach(ATTACH_TIMEOUT)
+        if not self._is_initialized:
+            self._phidget.openPhidget(serial = self._serial_number)
+            self._phidget.waitForAttach(ATTACH_TIMEOUT)
+            self._is_initialized = True
         
     def identify(self):
+        if not self._is_initialized:
+            self.initialize()
         name = self._phidget.getDeviceName()
         serial_number = self._phidget.getSerialNum()
         return "%s, Serial Number: %d" % (name, serial_number)
         
     def set_enabled(self, index, state = True):
+        if not self._is_initialized:
+            self.initialize()
         self._phidget.setEnabled(index,state)
         
     def get_frequency(self, index):
         """ reads the raw value from the sensor at 'index' 
             returns integer in range [0,4095]
         """
+        if not self._is_initialized:
+            self.initialize()
         return self._phidget.getFrequency(index)
     
     def shutdown(self):
+        if not self._is_initialized:
+            self.initialize()
         self._phidget.closePhidget()
     
     def __del__(self):

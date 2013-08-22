@@ -67,6 +67,7 @@ class Interface(Model):
         if not self._is_initialized:
             self.initialize()
         self._phidget.closePhidget()
+        self._is_initialized = False
     
     def __del__(self):
         self.shutdown()

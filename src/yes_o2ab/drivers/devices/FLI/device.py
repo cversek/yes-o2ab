@@ -34,7 +34,7 @@ class FLIDevice(Model):
         if not self._initialized:
             self._init_driver()
             self._init_device()
-            self._initialized = True 
+            self._initialized = True
                 
     def identify(self):
         self._init_driver()
@@ -52,7 +52,7 @@ class FLIDevice(Model):
         return (True, idn)
         
     def shutdown(self):
-        pass 
+        self._initialized = False
         
     #--------------------------------------------------------------------------
       

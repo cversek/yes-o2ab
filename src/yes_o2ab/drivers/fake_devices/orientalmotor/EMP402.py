@@ -124,7 +124,7 @@ class Interface(Model, SerialCommunicationsMixIn):
         self._reset()
     
     def _send_command(self, cmd):
-        self._send(cmd)
+        pass
         
     def _exchange_command(self, cmd):
         return ""

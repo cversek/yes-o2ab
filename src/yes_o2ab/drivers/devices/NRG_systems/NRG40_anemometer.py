@@ -12,11 +12,20 @@ from Phidgets.PhidgetException import PhidgetException
 ################################################################################
 #class for thermistor object
 class Interface(Device):
-    def __init__(self, freq_counter, channel, MPH_per_Hz, s0_MPH):
+    def __init__(self, 
+                 freq_counter, 
+                 channel,
+                 MPH_per_Hz,
+                 s0_MPH,
+                 freq_low_limit  = 2.0,    #Hz
+                 freq_high_limit = 120.0,  #Hz
+                ):
         self.freq_counter = freq_counter
         self.channel      = channel
         self.MPH_per_Hz   = MPH_per_Hz
         self.s0_MPH       = s0_MPH
+        self.freq_low_limit  = freq_low_limit
+        self.freq_high_limit = freq_high_limit
         
     def initialize(self):
         self.freq_counter.set_enabled(self.channel)
@@ -30,8 +39,13 @@ class Interface(Device):
         "reads the windspeed in MPH"
         try:
             freq = self.freq_counter.get_frequency(self.channel)
-            s = self.MPH_per_Hz*freq + self.s0_MPH #apply calibration
-            return s
+            if freq <= self.freq_low_limit:
+                return 0.0
+            elif freq >= self.freq_high_limit:
+                return float('nan')
+            else:
+                s = self.MPH_per_Hz*freq + self.s0_MPH #apply calibration
+                return s
         except PhidgetException:
             warn("Phidget Frequency Counter value is in an unknown state, reporting value as 0.0")
             return 0.0

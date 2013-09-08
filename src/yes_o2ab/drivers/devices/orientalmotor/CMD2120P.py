@@ -84,7 +84,7 @@ class Interface(Model):
         self._limit_sensor_config['offset'] = offset
         if start_speed is None:
             start_speed = self.default_start_speed
-        self._limit_sensor_config['start_speed']     = start_speed
+        self._limit_sensor_config['start_speed'] = start_speed
         
     def test(self):
         soft_rev     = self.motor_controller._exchange("? SOFT")
